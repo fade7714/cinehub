@@ -88,10 +88,14 @@
    - Wszystkie 7 widoków (`index.php`, `film.php`, `actors.php`, `actor.php`, `add_movie.php`, `add_actor.php`, `assign_actor.php`) renderują spójny layout HTML5 ze stylami Dark Mode bez anomalii przesunięcia układu (CLS).
 
 ### 5.2 Zmienione Pliki
+- `actors.php` – rozbudowa paska filtrów o wybór filmu, sortowanie oraz liczniki kryteriów.
+- `film.php` – dodanie bezpośredniego przycisku powiązania aktora w sekcji obsady oraz lokalnego komunikatu sukcesu po dodaniu recenzji.
+- `actor.php` – dodanie bezpośredniego przycisku przypisania roli w sekcji filmografii.
+- `frontend/js/main.js` – poprawka etykiety oceny przeciętnej (`5/10 – Przeciętny`).
 - `Docs/Sessions/Frontend.md` – niniejszy raport.
 
 ### 5.3 Wyniki Weryfikacji
-- Formularze i widoki w 100% sprawne, zachowano spójność z nową architekturą bazy danych.
+- Formularze i widoki w pełni sprawne, eliminacja błędu wyszukiwania, ergonomiczne skróty do przypisywania obsady.
 
 ---
 

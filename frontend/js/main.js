@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
         8: '8/10 – Bardzo dobry',
         7: '7/10 – Dobry',
         6: '6/10 – Niezły',
-        5: '5/5 – Przeciętny',
+        5: '5/10 – Przeciętny',
         4: '4/10 – Ujdzie w tłoku',
         3: '3/10 – Słaby',
         2: '2/10 – Bardzo zły',

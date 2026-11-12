@@ -18,8 +18,9 @@ $filmy = [];
 $aktorzy = [];
 
 $domyslnyFilmId = filter_var($_GET['film_id'] ?? null, FILTER_VALIDATE_INT) ?: 0;
+$domyslnyAktorId = filter_var($_GET['aktor_id'] ?? null, FILTER_VALIDATE_INT) ?: 0;
 $wybranyFilmId = $domyslnyFilmId;
-$wybranyAktorId = 0;
+$wybranyAktorId = $domyslnyAktorId;
 $rola = '';
 
 try {
@@ -73,7 +74,11 @@ try {
                 setFlash('success', 'Rola została pomyślnie przypisana do obsady filmu!');
             }
 
-            header('Location: film.php?id=' . $wybranyFilmId);
+            if ($domyslnyAktorId > 0 && $domyslnyFilmId === 0) {
+                header('Location: actor.php?id=' . $wybranyAktorId);
+            } else {
+                header('Location: film.php?id=' . $wybranyFilmId);
+            }
             exit;
         }
     }

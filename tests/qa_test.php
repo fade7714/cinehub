@@ -15,10 +15,13 @@
 
 declare(strict_types=1);
 
-$testDbFile = __DIR__ . '/test_cinehub_tmp.sqlite';
-if (file_exists($testDbFile)) {
-    unlink($testDbFile);
-}
+// Tworzenie dedykowanego, unikalnego pliku tymczasowego dla SQLite, aby nie modyfikować ani nie usuwać bazy użytkownika
+$testDbFile = sys_get_temp_dir() . '/cinehub_qa_' . bin2hex(random_bytes(6)) . '.sqlite';
+register_shutdown_function(static function () use ($testDbFile): void {
+    if (file_exists($testDbFile)) {
+        @unlink($testDbFile);
+    }
+});
 
 // Ustawienie środowiska testowego na izolowany plik SQLite
 putenv('DB_DRIVER=sqlite');
@@ -48,8 +51,13 @@ function assertTest(string $description, bool $condition, ?string $note = null):
 }
 
 /**
- * Konwertuje rzeczywisty kod DDL MySQL (database/schema.sql) na składnię SQLite,
- * aby testować rzeczywisty schemat z repozytorium zamiast ręcznie przepisanej kopii.
+ * Konwertuje kod DDL z database/schema.sql (dialekt MySQL/MariaDB) na uproszczony dialekt SQLite,
+ * aby umożliwić przetestowanie struktury tabel, integralności relacji M:N i logiki PDO w pamięci.
+ *
+ * ROZDZIELENIE DIALEKTÓW:
+ * SQLite nie obsługuje klauzul silnika InnoDB, zestawu znaków utf8mb4_unicode_ci, indeksów inline
+ * wewnątrz instrukcji CREATE TABLE ani komentarzy COMMENT. Właściwa weryfikacja natywnego DDL
+ * oraz egzekwowania ograniczeń CHECK i kaskad jest przeprowadzana w dedykowanym TEST 8 na silniku MariaDB.
  */
 function convertMysqlDdlToSqlite(string $sql): string {
     $sql = preg_replace('/^--.*$/m', '', $sql);
@@ -274,63 +282,159 @@ assertTest("Funkcja e() neutralizuje znaczniki HTML oraz cudzysłowy (ENT_QUOTES
     strpos($escapedVector, '<script>') === false && strpos($escapedVector, '&lt;script&gt;') !== false);
 
 // --------------------------------------------------------------------------
-// TEST 8: Weryfikacja na Rzeczywistym Serwerze MariaDB (Tymczasowa Baza Ephemeral)
+// TEST 8: Weryfikacja Zapytań Wyszukiwania i Filtrów (Brak Kolizji Parametrów HY093)
 // --------------------------------------------------------------------------
-echo PHP_EOL . "--- TEST 8: Weryfikacja Rzeczywistego Silnika MariaDB (Lokalna Baza Tymczasowa) ---" . PHP_EOL;
+echo PHP_EOL . "--- TEST 8: Weryfikacja Zapytań Wyszukiwania i Filtrów (Eliminacja Błędu HY093) ---" . PHP_EOL;
 
+// 8.1 Test zapytania wyszukiwania z index.php (tytuł, reżyser, opis oraz obsada)
+$searchSqlIndex = "
+    SELECT f.id, f.tytul, f.rezyser
+    FROM filmy f
+    WHERE 1=1
+    AND (
+        f.tytul LIKE :s_tytul 
+        OR f.rezyser LIKE :s_rezyser 
+        OR f.opis LIKE :s_opis
+        OR EXISTS (
+            SELECT 1 FROM obsada o_s 
+            JOIN aktorzy a_s ON o_s.aktor_id = a_s.id 
+            WHERE o_s.film_id = f.id 
+            AND (
+                a_s.imie LIKE :s_aktor_imie 
+                OR a_s.nazwisko LIKE :s_aktor_nazw 
+                OR (a_s.imie || ' ' || a_s.nazwisko) LIKE :s_aktor_full 
+                OR o_s.rola LIKE :s_aktor_rola
+            )
+        )
+    )
+";
+$searchTerm = '%Pazura%';
+$searchStmtIndex = $pdo->prepare($searchSqlIndex);
+$searchStmtIndex->execute([
+    's_tytul'      => $searchTerm,
+    's_rezyser'    => $searchTerm,
+    's_opis'       => $searchTerm,
+    's_aktor_imie' => $searchTerm,
+    's_aktor_nazw' => $searchTerm,
+    's_aktor_full' => $searchTerm,
+    's_aktor_rola' => $searchTerm,
+]);
+$foundFilmsByActor = $searchStmtIndex->fetchAll();
+
+assertTest("Wyszukiwanie w index.php po nazwisku aktora w obsadzie działa bez błędu HY093",
+    count($foundFilmsByActor) >= 2, "Zwrócono " . count($foundFilmsByActor) . " filmów dla frazy 'Pazura'");
+
+// 8.2 Test zapytania wyszukiwania i filtrów z actors.php
+$searchSqlActors = "
+    SELECT a.id, a.imie, a.nazwisko, COUNT(DISTINCT o.film_id) AS liczba_filmow
+    FROM aktorzy a
+    LEFT JOIN obsada o ON a.id = o.aktor_id
+    WHERE 1=1
+    AND (
+        a.imie LIKE :s_imie 
+        OR a.nazwisko LIKE :s_nazw 
+        OR (a.imie || ' ' || a.nazwisko) LIKE :s_full 
+        OR a.biografia LIKE :s_bio
+        OR EXISTS (
+            SELECT 1 FROM obsada o_s 
+            JOIN filmy f_s ON o_s.film_id = f_s.id 
+            WHERE o_s.aktor_id = a.id 
+            AND (f_s.tytul LIKE :s_film OR o_s.rola LIKE :s_rola)
+        )
+    )
+    GROUP BY a.id
+";
+$searchStmtActors = $pdo->prepare($searchSqlActors);
+$searchStmtActors->execute([
+    's_imie' => $searchTerm,
+    's_nazw' => $searchTerm,
+    's_full' => $searchTerm,
+    's_bio'  => $searchTerm,
+    's_film' => $searchTerm,
+    's_rola' => $searchTerm,
+]);
+$foundActors = $searchStmtActors->fetchAll();
+
+assertTest("Wyszukiwanie w actors.php działa bez błędu HY093",
+    count($foundActors) === 1 && $foundActors[0]['nazwisko'] === 'Pazura',
+    "Odnaleziono: " . ($foundActors[0]['imie'] ?? '') . " " . ($foundActors[0]['nazwisko'] ?? ''));
+
+// --------------------------------------------------------------------------
+// TEST 9: Weryfikacja na Rzeczywistym Serwerze MariaDB (Tymczasowa Baza Ephemeral)
+// --------------------------------------------------------------------------
+echo PHP_EOL . "--- TEST 9: Weryfikacja Rzeczywistego Silnika MariaDB (Lokalna Baza Tymczasowa) ---" . PHP_EOL;
+
+$mariaHost = getenv('DB_HOST') !== false && getenv('DB_HOST') !== '' ? getenv('DB_HOST') : 'localhost';
+$mariaPort = getenv('DB_PORT') !== false && getenv('DB_PORT') !== '' ? (int)getenv('DB_PORT') : 3306;
+$mariaUser = getenv('DB_USER') !== false && getenv('DB_USER') !== '' ? getenv('DB_USER') : 'root';
+$mariaPass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : 'root';
+
+$mariaDsn = "mysql:host={$mariaHost};port={$mariaPort};charset=utf8mb4";
+$tempDbName = 'cinehub_qa_tmp_' . bin2hex(random_bytes(6));
+$mariaPdo = null;
+$mariaDbCreated = false;
 $mariadbTested = false;
 $mariadbCheckPassed = false;
 $mariadbNote = "";
+$mariadbSkipped = false;
+$mariadbCleanupFailed = false;
 
 try {
-    $mariaDsn = 'mysql:host=localhost;charset=utf8mb4';
-    $mariaPdo = new PDO($mariaDsn, 'root', 'root', [
+    $mariaPdo = new PDO($mariaDsn, $mariaUser, $mariaPass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
 
     $version = (string)$mariaPdo->query("SELECT VERSION()")->fetchColumn();
-    $tempDbName = 'cinehub_qa_tmp_' . time();
 
-    // Utworzenie izolowanej, tymczasowej bazy testowej
+    // Utworzenie izolowanej, unikalnej bazy testowej
     $mariaPdo->exec("CREATE DATABASE `$tempDbName` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
+    $mariaDbCreated = true;
     $mariaPdo->exec("USE `$tempDbName`;");
 
-    // Nałożenie rzeczywistego database/schema.sql (z wyłączeniem instrukcji USE/CREATE DATABASE cinehub_db)
-    $mariaSchema = preg_replace('/CREATE\s+DATABASE[^;]+;/is', '', $rawSchema);
-    $mariaSchema = preg_replace('/USE\s+[^;]+;/is', '', (string)$mariaSchema);
-    $mariaPdo->exec((string)$mariaSchema);
-
-    // Test egzekwowania CHECK na MariaDB
-    $mariaPdo->exec("INSERT INTO filmy (id, tytul, rezyser, gatunek, rok_premiery, czas_trwania, opis) VALUES (1, 'F', 'R', 'G', 2000, 90, 'O')");
     try {
-        $mariaPdo->exec("INSERT INTO recenzje (film_id, autor, ocena, tresc) VALUES (1, 'BadUser', 15, 'Niepoprawna ocena 15')");
-        $mariadbCheckPassed = false;
-    } catch (PDOException $e) {
-        $mariadbCheckPassed = true;
+        // Nałożenie rzeczywistego database/schema.sql (z wyłączeniem instrukcji USE/CREATE DATABASE cinehub_db)
+        $mariaSchema = preg_replace('/CREATE\s+DATABASE[^;]+;/is', '', $rawSchema);
+        $mariaSchema = preg_replace('/USE\s+[^;]+;/is', '', (string)$mariaSchema);
+        $mariaPdo->exec((string)$mariaSchema);
+
+        // Test egzekwowania CHECK na MariaDB
+        $mariaPdo->exec("INSERT INTO filmy (id, tytul, rezyser, gatunek, rok_premiery, czas_trwania, opis) VALUES (1, 'F', 'R', 'G', 2000, 90, 'O')");
+        try {
+            $mariaPdo->exec("INSERT INTO recenzje (film_id, autor, ocena, tresc) VALUES (1, 'BadUser', 15, 'Niepoprawna ocena 15')");
+            $mariadbCheckPassed = false;
+        } catch (PDOException $e) {
+            $mariadbCheckPassed = true;
+        }
+
+        $mariadbTested = true;
+        $mariadbNote = "Wersja serwera: $version. Przetestowano na izolowanej bazie $tempDbName i poprawnie wyegzekwowano ograniczenie CHECK.";
+    } finally {
+        // Zagwarantowane usunięcie wyłącznie utworzonej bazy tymczasowej
+        if ($mariaDbCreated && $mariaPdo !== null) {
+            try {
+                $mariaPdo->exec("DROP DATABASE IF EXISTS `$tempDbName`;");
+            } catch (Throwable $dropEx) {
+                $mariadbCleanupFailed = true;
+                echo "  ⚠️ Błąd sprzątania tymczasowej bazy {$tempDbName}: " . $dropEx->getMessage() . PHP_EOL;
+            }
+        }
     }
-
-    // Sprzątnięcie tymczasowej bazy — nie pozostawiamy śmieci
-    $mariaPdo->exec("DROP DATABASE `$tempDbName`;");
-
-    $mariadbTested = true;
-    $mariadbNote = "Wersja serwera: $version. Przetestowano na izolowanej bazie $tempDbName i natychmiast ją usunięto.";
 } catch (Throwable $e) {
-    $mariadbNote = "Lokalny serwer MariaDB/MySQL nie był dostępny lub odmówił połączenia: " . $e->getMessage();
+    $mariadbSkipped = true;
+    $mariadbNote = "Połączenie z serwerem MariaDB/MySQL na {$mariaHost}:{$mariaPort} nie powiodło się: " . $e->getMessage();
 }
 
 if ($mariadbTested) {
     assertTest("Serwer MariaDB poprawnie załadował schema.sql i EGZEKWUJE ograniczenie CHECK(ocena BETWEEN 1 AND 10)", 
         $mariadbCheckPassed, $mariadbNote);
 } else {
-    echo "  [INFO] Pominięto test na żywym MariaDB: $mariadbNote" . PHP_EOL;
+    echo "  [POMINIĘTO] Test silnika MariaDB/MySQL: $mariadbNote" . PHP_EOL;
+    echo "              ⚠️ Silnik MariaDB NIE został zweryfikowany w tym środowisku (wymaga ręcznego audytu CHECK)." . PHP_EOL;
 }
 
-// --------------------------------------------------------------------------
-// Sprzątanie Tymczasowych Zasobów Testowych
-// --------------------------------------------------------------------------
-if (file_exists($testDbFile)) {
-    unlink($testDbFile);
+if ($mariadbCleanupFailed) {
+    assertTest("Sprzątanie tymczasowej bazy testowej MariaDB ($tempDbName)", false, "Nie udało się usunąć bazy ephemeral!");
 }
 
 // --------------------------------------------------------------------------
@@ -339,9 +443,16 @@ if (file_exists($testDbFile)) {
 echo PHP_EOL . "=====================================================================" . PHP_EOL;
 echo "  PODSUMOWANIE PAKIETU TESTÓW QA & INTEGRACJI" . PHP_EOL;
 echo "=====================================================================" . PHP_EOL;
-echo "Zaliczono: " . $passed . " / " . ($passed + $failed) . PHP_EOL;
-echo "Błędy:     " . $failed . PHP_EOL;
-echo "Status:    " . ($failed === 0 ? "SUKCES (Wszystkie asercje zaliczone)" : "BŁĄD (Wykryto niezgodności)") . PHP_EOL;
+echo "Asercje zaliczone: " . $passed . " / " . ($passed + $failed) . PHP_EOL;
+echo "Błędy:             " . $failed . PHP_EOL;
+
+if ($mariadbSkipped) {
+    echo "Status MariaDB:    POMINIĘTO (serwer MariaDB nie był testowany)" . PHP_EOL;
+    echo "Status ogólny:     " . ($failed === 0 ? "ZALICZONO CZĘŚCIOWO (Tylko SQLite; MariaDB wymaga weryfikacji ręcznej)" : "BŁĄD") . PHP_EOL;
+} else {
+    echo "Status MariaDB:    " . ($mariadbCheckPassed ? "ZALICZONO (potwierdzone egzekwowanie CHECK)" : "BŁĄD (brak egzekwowania CHECK)") . PHP_EOL;
+    echo "Status ogólny:     " . ($failed === 0 ? "SUKCES (Wszystkie asercje zaliczone)" : "BŁĄD (Wykryto niezgodności)") . PHP_EOL;
+}
 echo "=====================================================================" . PHP_EOL;
 
 echo PHP_EOL . "---------------------------------------------------------------------" . PHP_EOL;

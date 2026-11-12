@@ -3,7 +3,7 @@
 **Autor raportu:** Agent ds. Dokumentacji GitHub  
 **Nadzór:** Główny Agent (Orchestrator Systemu)  
 **Data wygenerowania:** 2026-11-12  
-**Status projektu:** Wdrożony, Przetestowany (21/21 PASS), Gotowy do Dalszego Rozwoju  
+**Status projektu:** Przetestowany w środowisku testowym (asercje PDO/SQL zaliczone), gotowy do weryfikacji ręcznej (INF.03)  
 
 ---
 
@@ -86,7 +86,7 @@ Wytworzenie aplikacji zostało podzielone na wyspecjalizowane etapy, z których 
   - **Eliminacja iloczynu kartezjańskiego:** Zastąpienie bezpośrednich złączeń tabel `obsada` i `recenzje` w `index.php` podzapytaniami z pre-agregacją (`derived tables`). Znaczący wzrost wydajności i gwarancja bezbłędnej średniej arytmetycznej ocen.
   - **Zgodność z `ONLY_FULL_GROUP_BY`:** Poprawienie zapytań w `actor.php` i `film.php`.
   - **Przenośność logiki duplikatów:** Uniwersalne sprawdzenie istnienia rekordu w `assign_actor.php`.
-  - **Wykonanie pakietu 21 testów integracyjnych w [`tests/qa_test.php`](file:///home/fade/Pulpit/cinehub/tests/qa_test.php):** Wynik **21/21 PASS (100%)**.
+  - **Wykonanie pakietu testów integracyjnych w [`tests/qa_test.php`](file:///home/fade/Pulpit/cinehub/tests/qa_test.php):** Asercje warstwy danych, relacji M:N, idempotencji oraz reguł CHECK zakończone pomyślnie.
 
 ### 2.8 Sesja 8: Dokumentacja GitHub i README.txt (`Docs/Sessions/Github-Doc.md`)
 - **Rola:** Agent ds. Dokumentacji GitHub
@@ -104,7 +104,7 @@ Wytworzenie aplikacji zostało podzielone na wyspecjalizowane etapy, z których 
 2. **`filmy` (1) <---> (N) `recenzje`:** Relacja jeden-do-wielu (1:N) z kaskadowym usuwaniem (`ON DELETE CASCADE`) oraz walidacją ograniczenia `CHECK (ocena BETWEEN 1 AND 10)`.
 
 ### 3.2 Warstwa Bezpieczeństwa
-- **Ochrona przed SQL Injection:** Całkowite wyeliminowanie interpolacji zmiennych w zapytaniach SQL. 100% zapytań bazodanowych w całej aplikacji korzysta z interfejsu PDO i parametrów wiązanych (`prepare()` + `execute()`).
+- **Ochrona przed SQL Injection:** Całkowite wyeliminowanie interpolacji zmiennych w zapytaniach SQL. Wszystkie zapytania bazodanowe w aplikacji korzystają z interfejsu PDO i parametrów wiązanych (`prepare()` + `execute()`).
 - **Ochrona przed XSS:** Wszystkie zmienne wyprowadzane do szablonów HTML są zabezpieczone funkcją pomocniczą `e()` opartą na `htmlspecialchars($val, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')`.
 - **Zapobieganie duplikatom formularzy (PRG Pattern):** Wszelkie operacje zapisu POST kończą się przekierowaniem HTTP 302/303 i wykorzystaniem komunikatów sesyjnych **Flash Messages**, co uniemożliwia ponowne wysłanie danych przy odświeżaniu strony (klawisz F5).
 
@@ -143,7 +143,7 @@ cinehub/
 │   ├── header.php               # Wspólny nagłówek HTML5 z nawigacją i alertami Flash
 │   └── footer.php               # Wspólna stopka HTML5 ze skryptami
 ├── tests/
-│   └── qa_test.php              # Zautomatyzowany pakiet 21 testów integracyjnych (DDL, DML, CHECK, relacje)
+│   └── qa_test.php              # Zautomatyzowany pakiet 23 testów integracyjnych (DDL, DML, CHECK, relacje, PDO)
 ├── index.php                    # Strona główna: katalog filmów, filtry gatunków, wyszukiwarka, sortowanie
 ├── film.php                     # Widok pojedynczego filmu: opis, obsada, recenzje i formularz opinii
 ├── actors.php                   # Katalog aktorów: wyszukiwarka, zdjęcia, biografie, liczba ról
@@ -164,6 +164,6 @@ Aplikacja **CineHub** w pełni spełnia kryteria stawiane aplikacjom internetowy
 - Pełne bezpieczeństwo instalacji i idempotentność danych: `schema.sql` nie niszczy istniejących tabel, `seed.sql` nie duplikuje wierszy i nie zawiera `TRUNCATE`, a opcjonalny reset wydzielono do `reset.sql`.
 - Precyzyjnie określone wymagania serwera DBMS: **MySQL 8.0.16+** lub **MariaDB 10.3+** zapewniające rzeczywiste egzekwowanie ograniczeń `CHECK`.
 - Czysty, modularny kod PHP 8 bez zależności frameworkowych, łatwy do wdrożenia na dowolnym serwerze LAMP/WAMP/XAMPP.
-- Nowoczesny, w 100% autorski interfejs użytkownika zrealizowany bez zewnętrznych bibliotek CSS/JS.
+- Nowoczesny, autorski interfejs użytkownika zrealizowany bez zewnętrznych bibliotek CSS/JS.
 - Rzetelny pakiet testowy `tests/qa_test.php` weryfikujący rzeczywisty schemat repozytorium z rozróżnieniem silników SQLite i MariaDB oraz czytelnym wskazaniem zakresu weryfikacji ręcznej (HTTP/UI).
 

@@ -174,7 +174,7 @@ nadzorowanym przez Głównego Agenta (Orchestratora). Każdy podagent realizowa�
      połączenia PDO (obsługa socket unix oraz TCP localhost), integralność referencyjna,
      indeksy wydajnościowe, reguły ON DELETE CASCADE, ograniczenia CHECK.
    - KLUCZOWE OGRANICZENIE: DBA nie wchodzi w rolę Content Agenta – nie weryfikuje
-     ani nie modyfikuje pojedynczych wartości rekordów, skupiając się w 100% na
+     ani nie modyfikuje pojedynczych wartości rekordów, skupiając się na
      architekturze, spójności i logice bazy danych.
    - Plik sesji: Docs/Sessions/Database-integrity.md
 
@@ -185,7 +185,7 @@ nadzorowanym przez Głównego Agenta (Orchestratora). Każdy podagent realizowa�
 
 6. QA ASYSTENT:
    - Zakres: Testy kodu, audyt bezpieczeństwa (SQLi, XSS, CSRF/PRG), weryfikacja
-     kryteriów Specs.md, stworzenie i uruchomienie 21 zautomatyzowanych testów
+     kryteriów Specs.md, stworzenie i uruchomienie 23 zautomatyzowanych testów
      integracyjnych (tests/qa_test.php).
    - Plik sesji: Docs/Sessions/QA.md
 
@@ -227,7 +227,7 @@ cinehub/
 │   ├── header.php                  - Wspólny nagłówek HTML5
 │   └── footer.php                  - Wspólna stopka HTML5
 ├── tests/
-│   └── qa_test.php                 - Zestaw 21 zautomatyzowanych testów integracyjnych (DDL, DML, CHECK)
+│   └── qa_test.php                 - Zestaw 23 zautomatyzowanych testów integracyjnych (DDL, DML, CHECK)
 ├── index.php                       - Katalog filmów z filtrami i wyszukiwarką
 ├── film.php                        - Karta filmu, obsada, opinie i formularz recenzji
 ├── actors.php                      - Katalog aktorów
@@ -261,7 +261,7 @@ Krok 2: Konfiguracja połączenia:
 Krok 3: Uruchomienie testów integracyjnych:
   php tests/qa_test.php
   (Weryfikuje DDL z schema.sql, DML z seed.sql, CHECK i relacje M:N na SQLite oraz MariaDB;
-   zwraca kod 0 i 21/21 zaliczonych asercji. Testy nie symulują stosu HTTP).
+   zwraca kod 0 przy zaliczeniu asercji testowych. Testy nie symulują stosu HTTP).
 
 Ręczna checklista dla weryfikacji przepływów HTTP / UI:
   1. Uruchom serwer WWW: php -S localhost:8000

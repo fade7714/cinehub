@@ -57,8 +57,30 @@ try {
     $params = [];
 
     if ($szukaj !== '') {
-        $sql .= " AND (f.tytul LIKE :szukaj OR f.rezyser LIKE :szukaj OR f.opis LIKE :szukaj)";
-        $params['szukaj'] = '%' . $szukaj . '%';
+        $sql .= " AND (
+            f.tytul LIKE :s_tytul 
+            OR f.rezyser LIKE :s_rezyser 
+            OR f.opis LIKE :s_opis
+            OR EXISTS (
+                SELECT 1 FROM obsada o_s 
+                JOIN aktorzy a_s ON o_s.aktor_id = a_s.id 
+                WHERE o_s.film_id = f.id 
+                AND (
+                    a_s.imie LIKE :s_aktor_imie 
+                    OR a_s.nazwisko LIKE :s_aktor_nazw 
+                    OR CONCAT(a_s.imie, ' ', a_s.nazwisko) LIKE :s_aktor_full 
+                    OR o_s.rola LIKE :s_aktor_rola
+                )
+            )
+        )";
+        $searchTerm = '%' . $szukaj . '%';
+        $params['s_tytul'] = $searchTerm;
+        $params['s_rezyser'] = $searchTerm;
+        $params['s_opis'] = $searchTerm;
+        $params['s_aktor_imie'] = $searchTerm;
+        $params['s_aktor_nazw'] = $searchTerm;
+        $params['s_aktor_full'] = $searchTerm;
+        $params['s_aktor_rola'] = $searchTerm;
     }
 
     if ($wybranyGatunek !== '') {
@@ -122,7 +144,7 @@ require_once __DIR__ . '/includes/header.php';
                     type="text" 
                     name="szukaj" 
                     class="form-control" 
-                    placeholder="Wyszukaj tytuł, reżysera lub słowo z opisu..." 
+                    placeholder="Wyszukaj tytuł, reżysera, aktora lub rolę..." 
                     value="<?= e($szukaj) ?>"
                     aria-label="Wyszukaj film"
                 >

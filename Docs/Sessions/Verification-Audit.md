@@ -24,7 +24,7 @@ Celem sesji było przeprowadzenie wszechstronnego przeglądu stanu projektu **Ci
   - Moduł aktorów (kartoteka, profil, filmografia, dodawanie) – `actors.php`, `actor.php`, `add_actor.php`.
   - Moduł relacji M:N (obsada, postacie, kaskadowość) – tabela `obsada`, formularz `assign_actor.php`.
   - Moduł recenzji i ocen (skala 1-10, agregacja ocen, walidacja) – tabela `recenzje`, endpoint w `film.php`.
-- **Diagramy Mermaid:** Diagram architektury (`flowchart TD`) oraz diagram relacji encji (`erDiagram`) są w 100% zgodne z fizyczną implementacją.
+- **Diagramy Mermaid:** Diagram architektury (`flowchart TD`) oraz diagram relacji encji (`erDiagram`) odzwierciedlają fizyczną implementację.
 
 ### 2.2 Backend Developer & Data Analyst – Połączenie i Baza Danych
 - **Diagnoza połączenia z bazą:**
@@ -51,10 +51,10 @@ Celem sesji było przeprowadzenie wszechstronnego przeglądu stanu projektu **Ci
 
 ### 2.5 QA Asystent – Audyt Testowy i Poprawki
 - **Wyeliminowanie ostrzeżeń środowiskowych:**
-  - Zastąpiono `filter_input(INPUT_GET/POST, ...)` bezpieczniejszym `filter_var($_GET/... ?? null, ...)` w plikach `film.php`, `actor.php` i `assign_actor.php`, co zapewnia 100% kompatybilność zarówno w środowisku przeglądarkowym, jak i w testach CLI/PHPUnit.
+  - Zastąpiono `filter_input(INPUT_GET/POST, ...)` bezpieczniejszym `filter_var($_GET/... ?? null, ...)` w plikach `film.php`, `actor.php` i `assign_actor.php`, co zapewnia stabilne działanie zarówno w środowisku przeglądarkowym, jak i w testach CLI/PHPUnit.
   - Zabezpieczono odczyt `$_SERVER['REQUEST_METHOD']` operatorem `?? ''` w formularzach POST.
 - **Wyniki testów integracyjnych (`tests/qa_test.php`):**
-  - Wszystkie 21 testów zakończone wynikiem **PASS (21/21, 100%)**.
+  - Wszystkie asercje jednostkowe i integracyjne zakończone powodzeniem (PASS).
 - **Wyniki testów renderowania stron na żywej bazie:**
   - `index.php`: 22 KB (OK)
   - `film.php`: 19 KB (OK)
@@ -101,8 +101,14 @@ W ramach kontrolowanej naprawy problemów krytycznych i wysokich zrealizowano:
    - Domyślna konfiguracja `localhost`, `root`, `root` w kodzie i dokumentacji; elastyczne wsparcie dla pustego hasła (`export DB_PASS=""`) oraz TCP (`export DB_HOST="127.0.0.1"`).
 4. **Weryfikacja wersji DBMS pod kątem ograniczenia CHECK:**
    - Zaktualizowano minimalne deklarowane wersje na **MySQL 8.0.16+** i **MariaDB 10.3+** z wyjaśnieniem, że MySQL 5.7 ignoruje ograniczenia `CHECK`.
+5. **Naprawa Uwag z Testów Manualnych Użytkownika:**
+   - **Błąd `SQLSTATE[HY093]`:** Usunięto powielony parametr `:szukaj` w zapytaniach SQL z wyłączoną emulacją preparowania (`PDO::ATTR_EMULATE_PREPARES => false`). Nadano unikalne nazwy placeholderom w `index.php` i `actors.php`.
+   - **Wyszukiwarka filmów:** Rozszerzono zapytanie `index.php`, aby uwzględniało także aktorów z obsady i nazwy ról filmowych.
+   - **Katalog aktorów (`actors.php`):** Wdrożono wyszukiwarkę tekstową, filtr według filmu (`film_id`) oraz sortowanie (alfabetyczne, wg liczby ról, wg roku urodzenia).
+   - **Usprawnienia UX powiązań i recenzji:** Dodano pre-selekcję formularza `assign_actor.php` z poziomu filmu i aktora, przyciski skrótu w profilach oraz natychmiastowy baner sukcesu w sekcji `#recenzje` w `film.php`.
+   - **Rozszerzenie testów:** Pakiet `tests/qa_test.php` rozbudowano o TEST 8 (test unikalności parametrów PDO); 23 / 23 asercje PASS.
 
 ---
 
 ## 5. Wnioski i Gotowość do Dalszej Pracy
-Projekt **CineHub** jest w 100% spójny, bezpieczny dla danych użytkownika i stabilny. Wszystkie procedury testowe zakończyły się sukcesem (21/21 PASS). Można bezpiecznie kontynuować dalszy rozwój projektu.
+Projekt **CineHub** jest spójny pod kątem architektury INF.03, bezpieczny dla danych użytkownika przy standardowym uruchamianiu i stabilny. Zautomatyzowane testy DDL/DML, egzekwowania reguły CHECK oraz bindowania parametrów (23/23) zakończyły się sukcesem. Uwagi z testów manualnych zostały kompleksowo rozwiązane.

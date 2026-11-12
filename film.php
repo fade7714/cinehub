@@ -77,7 +77,7 @@ try {
 
             setFlash('success', 'Twoja recenzja została pomyślnie dodana i uwzględniona w ocenie filmu!');
             // Zastosowanie wzorca PRG (Post/Redirect/Get)
-            header("Location: film.php?id=" . $filmId . "#recenzje");
+            header("Location: film.php?id=" . $filmId . "&recenzja=dodana#recenzje");
             exit;
         }
     }
@@ -209,8 +209,11 @@ require_once __DIR__ . '/includes/header.php';
 
                     <!-- Obsada Aktorska (Relacja M:N) -->
                     <div class="cast-section">
-                        <div class="detail-section-title">
-                            Obsada Aktorska (<?= count($obsada) ?>)
+                        <div class="detail-section-title" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                            <span>Obsada Aktorska (<?= count($obsada) ?>)</span>
+                            <a href="assign_actor.php?film_id=<?= (int)$film['id'] ?>" class="btn btn-secondary btn-sm" style="font-size: 0.8rem; padding: 4px 10px;">
+                                + Przypisz aktora
+                            </a>
                         </div>
 
                         <?php if (empty($obsada)): ?>
@@ -252,6 +255,15 @@ require_once __DIR__ . '/includes/header.php';
             <div class="section-heading">
                 <h2>Opinie i Recenzje Społeczności</h2>
             </div>
+
+            <?php if (isset($_GET['recenzja']) && $_GET['recenzja'] === 'dodana'): ?>
+                <div class="alert alert-success" role="alert" style="margin-bottom: 24px;">
+                    <span class="alert-icon">✅</span>
+                    <div class="alert-body">
+                        <strong>Dziękujemy!</strong> Twoja recenzja została pomyślnie dodana i uwzględniona w ocenie filmu.
+                    </div>
+                </div>
+            <?php endif; ?>
 
             <!-- Panel Oceny Zbiorczej -->
             <div class="reviews-scorecard">

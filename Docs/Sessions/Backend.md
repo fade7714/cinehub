@@ -97,13 +97,16 @@
    - Potwierdzono, że żaden plik backendowy nie posiada zahardkodowanych numerów `id` – wszystkie operacje bazują na dynamicznych parametrach z bazy danych lub żądań `$_GET`/`$_POST`.
 2. **Podwójna linia obrony dla ocen (Defense-in-Depth):**
    - W `film.php` formularz recenzji posiada ścisłą walidację PHP: `filter_var($_POST['ocena'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 10]])`.
-   - W połączeniu z bazodanowym ograniczeniem `CHECK (ocena BETWEEN 1 AND 10)` gwarantuje to 100% szczelność przed nieprawidłowymi ocenami zarówno na poziomie aplikacji, jak i bazy danych.
+   - W połączeniu z bazodanowym ograniczeniem `CHECK (ocena BETWEEN 1 AND 10)` zapewnia to skuteczną ochronę przed nieprawidłowymi ocenami zarówno na poziomie aplikacji, jak i bazy danych.
 3. **Elastyczna konfiguracja połączenia (`config/database.php`):**
    - Zaktualizowano odczyt hasła: `getenv('DB_PASS') !== false ? getenv('DB_PASS') : 'root'`, co pozwala bezkonfliktowo uruchamiać projekt w środowiskach z pustym hasłem (np. szkolny XAMPP: `export DB_PASS=""`), zachowując domyślne `root` dla środowisk ze skonfigurowanym kontem administracyjnym.
    - Utrzymano domyślny host `localhost` zapewniający bezpośrednie wykorzystanie gniazda uniksowego w systemach Linux oraz portu 3306 w środowiskach Windows i Docker.
 
 ### 5.2 Zmienione Pliki
 - `config/database.php` – rozszerzona obsługa parametru hasła i dokumentacja.
+- `index.php` – naprawa błędu HY093 (unikalne parametry PDO) i rozszerzenie wyszukiwania o obsadę.
+- `actors.php` – naprawa błędu HY093, dodanie filtrowania po filmie i sortowania.
+- `assign_actor.php` – obsługa pre-selekcji aktora i filmu oraz kontekstowe przekierowanie.
 - `Docs/Sessions/Backend.md` – niniejszy raport.
 
 ### 5.3 Wyniki Weryfikacji
@@ -111,8 +114,10 @@
 - Testy integracyjne: Wszystkie asercje w `tests/qa_test.php` zakończone sukcesem.
 - Renderowanie stron: Wszystkie 7 widoków generuje poprawny kod HTML.
 
-### 5.4 Pozostałe Problemy
-- Brak zidentyfikowanych problemów w warstwie backendowej.
+### 5.4 Rozwiązanie Błędu SQLSTATE[HY093] (2026-11-12)
+- **Przyczyna:** W `index.php` i `actors.php` pojedynczy parametr nazwany `:szukaj` występował trzykrotnie w klauzuli `WHERE ... LIKE :szukaj`. Przy wyłączonej emulacji prepares (`PDO::ATTR_EMULATE_PREPARES => false`) sterownik MySQL traktuje to jako niezgodność liczby tokenów z liczbą przekazanych zmiennych, rzucając wyjątek `SQLSTATE[HY093] Invalid parameter number`.
+- **Rozwiązanie:** Wprowadzono unikalne placeholdery dla każdego warunku (`:s_tytul`, `:s_rezyser`, `:s_opis`, `:s_aktor_imie`, `:s_aktor_nazw`, `:s_aktor_full`, `:s_aktor_rola` w `index.php` oraz `:s_imie`, `:s_nazw`, `:s_full`, `:s_bio`, `:s_film`, `:s_rola` w `actors.php`).
+- **Rozszerzenie logiki biznesowej:** Wyszukiwanie w katalogu filmów przeszukuje teraz również nazwiska aktorów i role w obsadzie za pomocą podzapytania `EXISTS`. W `actors.php` dodano możliwość filtrowania po filmie (`film_id`) oraz sortowanie.
 
 ---
 

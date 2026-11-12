@@ -122,13 +122,19 @@ require_once __DIR__ . '/includes/header.php';
 
         <!-- Sekcja Filmografii -->
         <section class="reviews-section">
-            <div class="section-heading">
+            <div class="section-heading" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                 <h2>Filmografia w Bazie CineHub (<?= count($filmografia) ?>)</h2>
+                <a href="assign_actor.php?aktor_id=<?= (int)$aktor['id'] ?>" class="btn btn-secondary btn-sm">
+                    + Przypisz rolę temu aktorowi
+                </a>
             </div>
 
             <?php if (empty($filmografia)): ?>
                 <div class="filter-card" style="text-align: center; padding: 40px;">
-                    <p>Ten aktor nie ma jeszcze przypisanych ról w filmach.</p>
+                    <p style="margin-bottom: 15px;">Ten aktor nie ma jeszcze przypisanych ról w filmach.</p>
+                    <a href="assign_actor.php?aktor_id=<?= (int)$aktor['id'] ?>" class="btn btn-primary btn-sm">
+                        + Przypisz pierwszą rolę filmową
+                    </a>
                 </div>
             <?php else: ?>
                 <div class="movie-grid">

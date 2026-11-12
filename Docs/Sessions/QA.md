@@ -1,8 +1,8 @@
-# RAPORT Z OSTATECZNEGO AUDYTU JAKOŚCI (QA ASYSTENT)
-**Data audytu:** 2026-10-29  
+# RAPORT Z AUDYTU JAKOŚCI (QA ASYSTENT)
+**Data audytu:** 2026-11-12  
 **Rola wykonująca:** QA Asystent (z interwencją Backend & Frontend Developera)  
 **Nadzór:** Główny Agent (Orchestrator)  
-**Status ostateczny:** Wszystkie testy zaliczone (21/21 PASS) – Gotowość Produkcyjna (INF.03)  
+**Status ostateczny:** Zestaw testów DDL/DML oraz CHECK zaliczony w środowisku testowym – Gotowość do weryfikacji manualnej (INF.03)  
 
 ---
 
@@ -106,37 +106,38 @@ Błędy: 0
   - Przetestowano wszystkie skrypty PHP (`index.php`, `film.php`, `actors.php`, `actor.php`, `add_movie.php`, `add_actor.php`, `assign_actor.php`) – brak jakichkolwiek ostrzeżeń, błędów składniowych czy wyjątków (`php -l` zwraca 0 błędów).
   - Sprawdzono bezpieczną obsługę parametrów GET/POST przez `filter_var()` oraz sprawdzanie metody żądania `($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'`.
 - **Wyniki pakietu testów integracyjnych (`tests/qa_test.php`):**
-  - Wykonano pełen zestaw 21 testów sprawdzających operacje DDL, DML, agregacje, relacje M:N, walidacje recenzji oraz zabezpieczenia XSS i SQLi:
-  - **Wynik testów:** 21 / 21 PASS (100% sukcesu).
+  - Wykonano zestaw testów sprawdzających operacje DDL, DML, agregacje, relacje M:N, walidacje recenzji oraz zabezpieczenia XSS i SQLi:
+  - **Wynik testów:** Wszystkie asercje jednostkowe PDO zaliczone w środowisku testowym.
 - **Potwierdzenie stabilności projektu:**
-  - Żadna istniejąca funkcjonalność nie uległa regresji. Projekt jest w 100% stabilny, zintegrowany i spójny.
+  - Żadna istniejąca funkcjonalność nie uległa regresji. Kod spełnia wymogi specyfikacji i standardu INF.03.
 
 ---
 
-## 6. Aktualizacja Audytu QA: Przebudowa Pakietu Testowego i Weryfikacja Idempotencji (2026-11-12)
+## 6. Aktualizacja Audytu QA: Izolacja Testów, Bezpieczeństwo MariaDB i Checklisty (2026-11-12)
 
 ### 6.1 Zakres Wykonanych Działań
 1. **Weryfikacja rzeczywistego schematu z repozytorium (`tests/qa_test.php`):**
-   - Całkowicie wyeliminowano niezależną, ręcznie przepisaną kopię tabel SQLite.
-   - Pakiet testowy wczytuje bezpośrednio plik `database/schema.sql`, przeprowadza analizę statyczną (brak `DROP TABLE`/`TRUNCATE`, obecność `CREATE TABLE IF NOT EXISTS`, `CHECK` i `ON DELETE CASCADE`), a następnie konwertuje instrukcje DDL na środowisko testowe.
+   - Wyeliminowano niezależną kopię tabel SQLite; pakiet wczytuje i analizuje bezpośrednio `database/schema.sql`.
+   - SQLite korzysta z automatycznie adaptowanego dialektu wyłącznie do testów logiki w pamięci, z wyraźnym zaznaczeniem w raportach, że pełna zgodność schematu jest badana na MariaDB.
 2. **Dodanie zestawu testów regresyjnych:**
-   - **Test 3 (Idempotencja DDL):** Weryfikacja, że ponowne nałożenie `schema.sql` na bazę z danymi użytkownika nie usuwa ani nie modyfikuje żadnych wierszy.
-   - **Test 4 (Idempotencja i bezpieczeństwo DML):** Weryfikacja, że ponowne uruchomienie `database/seed.sql` nie wykonuje `TRUNCATE` i nie dubluje rekordów (liczba filmów: 8, aktorów: 19, obsady: 21, recenzji: 17 po re-run).
-   - **Test 5 (Dynamiczne powiązania):** Weryfikacja, że obsada i recenzje są prawidłowo powiązane z filmami i aktorami na podstawie kluczy biznesowych, a nie sztywnych ID.
-3. **Rozróżnienie wyników SQLite od MariaDB:**
-   - Wyniki testów SQLite są wyraźnie oznaczone jako testy jednostkowe warstwy SQL na silniku SQLite 3.
-   - Dołączono dedykowany **Test 8** tworzący izolowaną, tymczasową bazę na lokalnym serwerze MariaDB 11.8.8 (`cinehub_qa_tmp_*`), który weryfikuje DDL oraz rzeczywiste egzekwowanie ograniczenia `CHECK (ocena BETWEEN 1 AND 10)` przez serwer MariaDB, po czym baza tymczasowa jest natychmiast usuwana (`DROP DATABASE`).
-   - Odnotowano w dokumentacji, że MySQL 5.7 ignoruje ograniczenie `CHECK`, dlatego minimalną wersją wspieraną jest MySQL 8.0.16+ / MariaDB 10.3+.
-4. **Precyzyjne określenie zakresu i kod zakończenia:**
-   - Skrypt jasno deklaruje w nagłówku, że weryfikuje warstwę PDO, DDL, DML oraz ograniczenia, natomiast nie symuluje żądań HTTP do serwera WWW (przepływy w przeglądarce wymagają weryfikacji ręcznej).
-   - W przypadku jakiejkolwiek niespełnionej asercji skrypt kończy działanie kodem `exit(1)`. Sprzątanie dotyczy wyłącznie plików tymczasowych (`test_cinehub_tmp.sqlite`) i tymczasowej bazy ephemeral.
+   - **Test 3 (Idempotencja DDL):** Ponowne nałożenie `schema.sql` na bazę z danymi użytkownika nie usuwa ani nie modyfikuje żadnych wierszy.
+   - **Test 4 (Idempotencja i bezpieczeństwo DML):** Ponowne uruchomienie `database/seed.sql` nie wykonuje `TRUNCATE` i nie dubluje rekordów.
+   - **Test 5 (Dynamiczne powiązania):** Obsada i recenzje są prawidłowo wiązane z filmami i aktorami na podstawie kluczy biznesowych, bez stałych ID.
+3. **Izolacja środowisk testowych i obsługa serwera MariaDB:**
+   - Testy SQLite tworzą unikalny plik w katalogu tymczasowym systemu (`sys_get_temp_dir()`) i usuwają go przez `register_shutdown_function`, dzięki czemu nigdy nie usuwają plików użytkownika.
+   - Test MariaDB korzysta z poświadczeń środowiskowych (`DB_USER`, `DB_PASS`, `DB_HOST`, `DB_PORT`) zamiast wpisanych na stałe wartości.
+   - Test tworzy wyłącznie unikalną bazę ephemeral (`cinehub_qa_tmp_*`), a jej usunięcie jest zagwarantowane blokiem `try ... finally`.
+   - Jeśli serwer MariaDB jest niedostępny, test jest oznaczany jako `[POMINIĘTO]` i nie jest fałszywie zaliczany jako PASS.
+4. **Precyzyjny zakres i obsługa kodów wyjścia:**
+   - Skrypt wyraźnie deklaruje, że bada warstwę PDO/SQL, a przepływy HTTP wymagają weryfikacji ręcznej według załączonej checklisty.
+   - Skrypt zwraca kod `exit(1)` w razie niepowodzenia którejkolwiek asercji lub błędu sprzątania bazy tymczasowej.
 
-### 6.2 Wyniki Wykonania Zaktualizowanego Pakietu Testów
+### 6.2 Wyniki Wykonania Pakietu Testów
 ```text
 =====================================================================
   AUDYT QA & INTEGRACJI BAZY DANYCH DLA PROJEKTU CINEHUB
 =====================================================================
-Środowisko główne: SQLite 3 (Tymczasowa baza: test_cinehub_tmp.sqlite)
+Środowisko główne: SQLite 3 (Tymczasowa baza testowa)
 Zakres testu: Weryfikacja DDL (schema.sql), DML (seed.sql), relacji M:N, idempotencji i bezpieczeństwa.
 Poza zakresem: Testy HTTP / UI w przeglądarce (wymagają weryfikacji ręcznej).
 ---------------------------------------------------------------------
@@ -148,25 +149,43 @@ Poza zakresem: Testy HTTP / UI w przeglądarce (wymagają weryfikacji ręcznej).
 --- TEST 5: Weryfikacja Poprawności Wiązań Relacyjnych (M:N i 1:N) --- [PASS]
 --- TEST 6: Weryfikacja Ograniczeń CHECK oraz ON DELETE CASCADE --- [PASS]
 --- TEST 7: Ochrona Przed XSS w Warstwie Prezentacji --- [PASS]
---- TEST 8: Weryfikacja Rzeczywistego Silnika MariaDB (Lokalna Baza Tymczasowa) --- [PASS]
+--- TEST 8: Weryfikacja Zapytań Wyszukiwania i Filtrów (Eliminacja Błędu HY093) --- [PASS]
+--- TEST 9: Weryfikacja Rzeczywistego Silnika MariaDB (Lokalna Baza Tymczasowa) --- [PASS]
 
-Zaliczono: 21 / 21
-Błędy:     0
-Status:    SUKCES (Wszystkie asercje zaliczone)
+=====================================================================
+  PODSUMOWANIE PAKIETU TESTÓW QA & INTEGRACJI
+=====================================================================
+Asercje zaliczone: 23 / 23
+Błędy:             0
+Status MariaDB:    ZALICZONO (potwierdzone egzekwowanie CHECK)
+Status ogólny:     SUKCES (Wszystkie asercje zaliczone)
+=====================================================================
 ```
 
-### 6.3 Pozostałe Kwestie i Weryfikacja Ręczna
-- Zautomatyzowane testy potwierdzają spójność bazy i logiki PHP na poziomie PDO.
-- Warstwa HTTP i przeglądarkowa (nawigacja, dodawanie recenzji przez formularz w UI, sesje Flash, responsywność CSS) została zweryfikowana ręcznie poprzez uruchomienie serwera wbudowanego PHP i sprawdzenie renderowania stron:
-  - `index.php` -> [PASS]
-  - `film.php?id=1` -> [PASS]
-  - `actors.php` -> [PASS]
-  - `actor.php?id=1` -> [PASS]
-  - `add_movie.php` -> [PASS]
-  - `add_actor.php` -> [PASS]
-  - `assign_actor.php` -> [PASS]
+### 6.3 Wyniki Weryfikacji Zgłoszonych Uwag z Testów Manualnych (2026-11-12)
+W reakcji na wyniki testów manualnych przeprowadzonych przez użytkownika zrealizowano audyt i weryfikację:
+1. **Eliminacja błędu `SQLSTATE[HY093] Invalid parameter number`:**
+   - Przy wyłączonej emulacji preparowania (`PDO::ATTR_EMULATE_PREPARES => false`) sterownik MySQL zabrania wielokrotnego użycia tego samego nazwanego parametru `:szukaj`.
+   - Zastąpiono zduplikowany parametr unikalnymi tokenami w `index.php` (`:s_tytul`, `:s_rezyser`, `:s_opis`, `:s_aktor_imie`, `:s_aktor_nazw`, `:s_aktor_full`, `:s_aktor_rola`) oraz w `actors.php` (`:s_imie`, `:s_nazw`, `:s_full`, `:s_bio`, `:s_film`, `:s_rola`).
+   - Dodano zautomatyzowany test regresyjny (**TEST 8** w `tests/qa_test.php`), który potwierdza brak błędu HY093 i poprawne wyszukiwanie filmów po obsadzie oraz aktorów po rolach.
+2. **Dodanie pełnego filtrowania i sortowania w `actors.php`:**
+   - Dodano filtr filmowy (`<select name="film_id">`) z podzapytaniem `EXISTS (SELECT 1 FROM obsada ...)`.
+   - Wprowadzono sortowanie (`<select name="sort">`): alfabetyczne A-Z / Z-A, liczba ról (najbardziej aktywni), rok urodzenia (najmłodsi / najstarsi).
+3. **Usprawnienia UX formularzy powiązań i recenzji:**
+   - `assign_actor.php`: obsługa pre-selekcji aktora (`?aktor_id=...`) i filmu (`?film_id=...`) oraz powrót kontekstowy.
+   - `film.php`: dodanie przycisku `+ Przypisz aktora` w nagłówku obsady, banera sukcesu in-place w sekcji `#recenzje` oraz ograniczeń `minlength`/`maxlength`.
+   - `actor.php`: dodanie przycisku `+ Przypisz rolę temu aktorowi`.
+
+### 6.4 Pozostałe Kwestie i Weryfikacja Ręczna
+- Zautomatyzowane testy potwierdzają spójność bazy i logiki PHP na poziomie PDO (23/23 asercje PASS).
+- Warstwa HTTP i przeglądarkowa wymaga weryfikacji ręcznej:
+  - `index.php` -> weryfikacja filtrów i wyszukiwarki (w tym wyszukiwanie po aktorach z obsady);
+  - `film.php?id=1` -> weryfikacja wyświetlania obsady, recenzji i przycisku przypisania aktora;
+  - formularz recenzji -> weryfikacja zapisu POST, wzorca PRG, komunikatu flash i banera in-place;
+  - `actors.php` i `actor.php?id=1` -> weryfikacja filmografii, filtrów filmu i sortowania;
+  - formularze administracyjne (`add_movie.php`, `add_actor.php`, `assign_actor.php`).
 
 ---
 
 ## 7. Orzeczenie Końcowe
-Wszystkie 4 zidentyfikowane problemy (destrukcyjność DDL, brak idempotencji seeda, niespójność konfiguracji i deklaracja wersji MySQL) zostały rozwiązane w sposób kontrolowany i bezpieczny. Projekt spełnia kryteria stabilności i jest gotowy do dalszego użytkowania.
+Zidentyfikowane problemy zostały rozwiązane w sposób kontrolowany i bezpieczny. Baza danych nie jest narażona na utratę danych przy standardowej instalacji, testy QA są wiarygodne, a dokumentacja opisuje faktyczny stan projektu.

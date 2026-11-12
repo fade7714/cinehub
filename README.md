@@ -136,7 +136,7 @@ Projekt został zrealizowany w innowacyjnej metodyce orkiestracji wieloagentowej
        ┌─────────────────────────────┼─────────────────────────────┐
        ▼                             ▼                             ▼
  4. ADMINISTRATOR BAZY       5. CONTENT AGENT              6. QA ASYSTENT
-    DANYCH (DBA)             (Zasilenie bazy danymi        (Audyt 21 testów,
+    DANYCH (DBA)             (Zasilenie bazy danymi        (Audyt 23 testów,
  (Integracja bazy, sockety,   polskiego kina seed.sql)      optymalizacja SQL,
   DDL, klucze, kaskady)              │                      stabilność systemu)
        │                             │                             │
@@ -156,7 +156,7 @@ Projekt został zrealizowany w innowacyjnej metodyce orkiestracji wieloagentowej
    > ⚠️ **Kluczowa zasada:** DBA *nie wchodzi w rolę Content Agenta* – nie weryfikuje ani nie ocenia pojedynczych rekordów danych, lecz wyłącznie techniczną i logiczną integrację bazy z kodem.  
    Raport: [`Docs/Sessions/Database-integrity.md`](Docs/Sessions/Database-integrity.md).
 6. **Content Agent:** Zebranie i wprowadzenie autentycznych danych z historii polskiego kina: 8 filmów, 19 aktorów, 21 ról w obsadzie, 17 recenzji (`database/seed.sql`). Raport: [`Docs/Sessions/Content.md`](Docs/Sessions/Content.md).
-7. **QA Asystent:** Rygorystyczny audyt całego kodu, wykrycie i zlecenie poprawek (podstrony aktorów, eliminacja ostrzeżeń CLI, dostępność formularzy), stworzenie i wdrożenie automatycznego pakietu 21 testów integracyjnych (`tests/qa_test.php`). Raport: [`Docs/Sessions/QA.md`](Docs/Sessions/QA.md).
+7. **QA Asystent:** Rygorystyczny audyt całego kodu, wykrycie i zlecenie poprawek (podstrony aktorów, eliminacja ostrzeżeń CLI, dostępność formularzy), stworzenie i wdrożenie automatycznego pakietu 23 testów integracyjnych (`tests/qa_test.php`). Raport: [`Docs/Sessions/QA.md`](Docs/Sessions/QA.md).
 8. **Agent ds. Dokumentacji GitHub:** Zebranie raportów cząstkowych, opracowanie dokumentu podsumowującego [`Docs/Final-Report.md`](Docs/Final-Report.md), stworzenie niniejszego przewodnika `README.md`, wygenerowanie oficjalnego pliku tekstowego [`README.txt`](README.txt) oraz sformatowanie merytorycznej komendy `git commit`. Raport: [`Docs/Sessions/Github-Doc.md`](Docs/Sessions/Github-Doc.md).
 
 ---
@@ -194,7 +194,7 @@ cinehub/
 │   ├── header.php               # Wspólny nagłówek HTML5 z nawigacją i alertami Flash
 │   └── footer.php               # Wspólna stopka strony HTML5 ze skryptem JS
 ├── tests/
-│   └── qa_test.php              # Zautomatyzowany pakiet 21 testów integracyjnych (DDL, DML, CHECK)
+│   └── qa_test.php              # Zautomatyzowany pakiet 23 testów integracyjnych (DDL, DML, CHECK)
 ├── index.php                    # Strona główna: katalog filmów, filtry, wyszukiwarka
 ├── film.php                     # Szczegóły filmu, obsada, recenzje i formularz opinii
 ├── actors.php                   # Katalog aktorów z wyszukiwarką
@@ -288,14 +288,14 @@ Projekt posiada wbudowany, niezależny pakiet testów integracyjnych [`tests/qa_
 php tests/qa_test.php
 ```
 
-Pakiet zwraca kod zakończenia `0` w przypadku zaliczenia wszystkich asercji lub kod `1` w razie wykrycia jakichkolwiek błędów. Testy tworzą wyłącznie tymczasowe zasoby (plik `test_cinehub_tmp.sqlite` oraz ewentualną tymczasową bazę MariaDB), które są natychmiast usuwane po zakończeniu.
+Pakiet zwraca kod zakończenia `0` w przypadku zaliczenia wszystkich asercji lub kod `1` w razie wykrycia jakichkolwiek błędów. Testy tworzą wyłącznie tymczasowe zasoby (unikalny plik SQLite w katalogu tymczasowym oraz ewentualną tymczasową bazę MariaDB sprzątaną w bloku `finally`), które są usuwane po zakończeniu.
 
 Oczekiwany rezultat wykonania:
 ```text
 =====================================================================
   AUDYT QA & INTEGRACJI BAZY DANYCH DLA PROJEKTU CINEHUB
 =====================================================================
-Środowisko główne: SQLite 3 (Tymczasowa baza: test_cinehub_tmp.sqlite)
+Środowisko główne: SQLite 3 (Tymczasowa baza testowa)
 Zakres testu: Weryfikacja DDL (schema.sql), DML (seed.sql), relacji M:N, idempotencji i bezpieczeństwa.
 Poza zakresem: Testy HTTP / UI w przeglądarce (wymagają weryfikacji ręcznej).
 ---------------------------------------------------------------------
@@ -307,14 +307,16 @@ Poza zakresem: Testy HTTP / UI w przeglądarce (wymagają weryfikacji ręcznej).
 --- TEST 5: Weryfikacja Poprawności Wiązań Relacyjnych (M:N i 1:N) --- [PASS]
 --- TEST 6: Weryfikacja Ograniczeń CHECK oraz ON DELETE CASCADE --- [PASS]
 --- TEST 7: Ochrona Przed XSS w Warstwie Prezentacji --- [PASS]
---- TEST 8: Weryfikacja Rzeczywistego Silnika MariaDB (Lokalna Baza Tymczasowa) --- [PASS]
+--- TEST 8: Weryfikacja Zapytań Wyszukiwania i Filtrów (Eliminacja Błędu HY093) --- [PASS]
+--- TEST 9: Weryfikacja Rzeczywistego Silnika MariaDB (Lokalna Baza Tymczasowa) --- [PASS]
 
 =====================================================================
   PODSUMOWANIE PAKIETU TESTÓW QA & INTEGRACJI
 =====================================================================
-Zaliczono: 21 / 21
-Błędy:     0
-Status:    SUKCES (Wszystkie asercje zaliczone)
+Asercje zaliczone: 23 / 23
+Błędy:             0
+Status MariaDB:    ZALICZONO (potwierdzone egzekwowanie CHECK)
+Status ogólny:     SUKCES (Wszystkie asercje zaliczone)
 =====================================================================
 
 ---------------------------------------------------------------------

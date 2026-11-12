@@ -13,10 +13,17 @@ require_once __DIR__ . '/includes/functions.php';
 $pageTitle = 'Baza Aktorów';
 $dbError = null;
 $aktorzy = [];
+$filmyFilter = [];
 $szukaj = trim((string)($_GET['szukaj'] ?? ''));
+$wybranyFilmId = filter_var($_GET['film_id'] ?? null, FILTER_VALIDATE_INT) ?: 0;
+$sortowanie = trim((string)($_GET['sort'] ?? 'nazwisko_asc'));
 
 try {
     $pdo = getDbConnection();
+
+    // Pobranie listy filmów do filtra dropdown
+    $stmtFilmy = $pdo->query("SELECT id, tytul, rok_premiery FROM filmy ORDER BY tytul ASC");
+    $filmyFilter = $stmtFilmy->fetchAll(PDO::FETCH_ASSOC);
 
     $sql = "
         SELECT 
@@ -26,7 +33,7 @@ try {
             a.data_urodzenia,
             a.zdjecie,
             a.biografia,
-            COUNT(o.id) AS liczba_filmow
+            COUNT(DISTINCT o.film_id) AS liczba_filmow
         FROM aktorzy a
         LEFT JOIN obsada o ON a.id = o.aktor_id
         WHERE 1=1
@@ -35,11 +42,52 @@ try {
     $params = [];
 
     if ($szukaj !== '') {
-        $sql .= " AND (a.imie LIKE :szukaj OR a.nazwisko LIKE :szukaj OR a.biografia LIKE :szukaj)";
-        $params['szukaj'] = '%' . $szukaj . '%';
+        $sql .= " AND (
+            a.imie LIKE :s_imie 
+            OR a.nazwisko LIKE :s_nazw 
+            OR CONCAT(a.imie, ' ', a.nazwisko) LIKE :s_full 
+            OR a.biografia LIKE :s_bio
+            OR EXISTS (
+                SELECT 1 FROM obsada o_s 
+                JOIN filmy f_s ON o_s.film_id = f_s.id 
+                WHERE o_s.aktor_id = a.id 
+                AND (f_s.tytul LIKE :s_film OR o_s.rola LIKE :s_rola)
+            )
+        )";
+        $searchTerm = '%' . $szukaj . '%';
+        $params['s_imie'] = $searchTerm;
+        $params['s_nazw'] = $searchTerm;
+        $params['s_full'] = $searchTerm;
+        $params['s_bio']  = $searchTerm;
+        $params['s_film'] = $searchTerm;
+        $params['s_rola'] = $searchTerm;
     }
 
-    $sql .= " GROUP BY a.id ORDER BY a.nazwisko ASC, a.imie ASC";
+    if ($wybranyFilmId > 0) {
+        $sql .= " AND EXISTS (SELECT 1 FROM obsada o_f WHERE o_f.aktor_id = a.id AND o_f.film_id = :flt_film_id)";
+        $params['flt_film_id'] = $wybranyFilmId;
+    }
+
+    $sql .= " GROUP BY a.id";
+
+    switch ($sortowanie) {
+        case 'nazwisko_desc':
+            $sql .= " ORDER BY a.nazwisko DESC, a.imie DESC";
+            break;
+        case 'filmy_desc':
+            $sql .= " ORDER BY liczba_filmow DESC, a.nazwisko ASC";
+            break;
+        case 'rok_desc':
+            $sql .= " ORDER BY a.data_urodzenia IS NULL, a.data_urodzenia DESC";
+            break;
+        case 'rok_asc':
+            $sql .= " ORDER BY a.data_urodzenia IS NULL, a.data_urodzenia ASC";
+            break;
+        case 'nazwisko_asc':
+        default:
+            $sql .= " ORDER BY a.nazwisko ASC, a.imie ASC";
+            break;
+    }
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -68,7 +116,7 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 <?php else: ?>
 
-    <!-- Wyszukiwarka Aktorów -->
+    <!-- Wyszukiwarka i Filtry Aktorów -->
     <div class="filter-card">
         <form method="GET" action="actors.php" class="filter-form">
             <div class="search-input-group">
@@ -77,20 +125,46 @@ require_once __DIR__ . '/includes/header.php';
                     type="text" 
                     name="szukaj" 
                     class="form-control" 
-                    placeholder="Wyszukaj aktora po imieniu, nazwisku..." 
+                    placeholder="Wyszukaj aktora, rolę lub film..." 
                     value="<?= e($szukaj) ?>"
+                    aria-label="Wyszukaj aktora"
                 >
             </div>
+
+            <div class="select-group">
+                <select name="film_id" class="form-control" aria-label="Filtruj według filmu">
+                    <option value="">Wszystkie produkcje</option>
+                    <?php foreach ($filmyFilter as $ff): ?>
+                        <option value="<?= (int)$ff['id'] ?>" <?= (int)$wybranyFilmId === (int)$ff['id'] ? 'selected' : '' ?>>
+                            🎬 <?= e($ff['tytul']) ?> (<?= (int)$ff['rok_premiery'] ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="select-group">
+                <select name="sort" class="form-control" aria-label="Sortowanie">
+                    <option value="nazwisko_asc" <?= $sortowanie === 'nazwisko_asc' ? 'selected' : '' ?>>Nazwisko (A-Z)</option>
+                    <option value="nazwisko_desc" <?= $sortowanie === 'nazwisko_desc' ? 'selected' : '' ?>>Nazwisko (Z-A)</option>
+                    <option value="filmy_desc" <?= $sortowanie === 'filmy_desc' ? 'selected' : '' ?>>Najwięcej ról w bazie</option>
+                    <option value="rok_desc" <?= $sortowanie === 'rok_desc' ? 'selected' : '' ?>>Wiek (Najmłodsi)</option>
+                    <option value="rok_asc" <?= $sortowanie === 'rok_asc' ? 'selected' : '' ?>>Wiek (Najstarsi)</option>
+                </select>
+            </div>
+
             <div class="filter-actions">
-                <button type="submit" class="btn btn-primary">Szukaj</button>
-                <?php if ($szukaj !== ''): ?>
-                    <a href="actors.php" class="btn btn-secondary">Wyczyść</a>
+                <button type="submit" class="btn btn-primary">Filtruj</button>
+                <?php if ($szukaj !== '' || $wybranyFilmId > 0 || $sortowanie !== 'nazwisko_asc'): ?>
+                    <a href="actors.php" class="btn btn-secondary">Zresetuj</a>
                 <?php endif; ?>
             </div>
         </form>
 
         <div class="results-count">
-            <span>Łącznie w bazie: <strong><?= count($aktorzy) ?></strong> <?= count($aktorzy) === 1 ? 'aktor' : 'aktorów' ?></span>
+            <span>Wyświetlono: <strong><?= count($aktorzy) ?></strong> <?= count($aktorzy) === 1 ? 'aktora' : 'aktorów' ?></span>
+            <?php if ($szukaj !== '' || $wybranyFilmId > 0): ?>
+                <span>Kryteria: <em><?= e($szukaj ? 'fraza: "' . $szukaj . '"' : '') ?><?= $wybranyFilmId > 0 ? ' [filtr filmu aktywny]' : '' ?></em></span>
+            <?php endif; ?>
         </div>
     </div>
 

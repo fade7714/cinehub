@@ -260,8 +260,16 @@ Krok 2: Konfiguracja połączenia:
 
 Krok 3: Uruchomienie testów integracyjnych:
   php tests/qa_test.php
-  (Weryfikuje DDL z schema.sql, DML z seed.sql, CHECK i relacje M:N na SQLite oraz MariaDB.
-   Testy nie symulują stosu HTTP - formularze i UI wymagają weryfikacji ręcznej).
+  (Weryfikuje DDL z schema.sql, DML z seed.sql, CHECK i relacje M:N na SQLite oraz MariaDB;
+   zwraca kod 0 i 21/21 zaliczonych asercji. Testy nie symulują stosu HTTP).
+
+Ręczna checklista dla weryfikacji przepływów HTTP / UI:
+  1. Uruchom serwer WWW: php -S localhost:8000
+  2. Otwórz http://localhost:8000 i sprawdź katalog, filtry oraz sortowanie.
+  3. Wejdź w szczegóły filmu (np. film.php?id=1) i zweryfikuj obsadę oraz recenzje.
+  4. Wypełnij formularz recenzji (ocena 1-10) i sprawdź redirect PRG oraz Flash alert.
+  5. Wejdź w profil aktora (actor.php?id=1) i sprawdź filmografię.
+  6. Przetestuj formularze add_movie.php, add_actor.php i assign_actor.php.
 
 Krok 4: Uruchomienie serwera WWW:
   php -S localhost:8000

@@ -56,14 +56,16 @@ W ramach niniejszej sesji Agent ds. Dokumentacji GitHub przeprowadził komplekso
 3. **Ujednolicenie opisu konfiguracji PDO:**
    - Zsynchronizowano opis w dokumentacji z kodem w `config/database.php`: domyślny host `localhost`, użytkownik `root`, hasło `root`, baza `cinehub_db`.
    - Dodano instrukcję dla środowisk z pustym hasłem (np. XAMPP: `export DB_PASS=""`) oraz połączeń sieciowych TCP (`export DB_HOST="127.0.0.1"`).
-4. **Precyzyjny opis wyników testów integracyjnych:**
-   - Usunięto nieprecyzyjne sformułowania o „pełnym testowaniu przepływów aplikacji”; jasno określono, że `tests/qa_test.php` weryfikuje warstwę danych PDO, DDL z `schema.sql`, DML z `seed.sql`, ograniczenia i idempotencję, natomiast przepływy HTTP i interfejs w przeglądarce wymagają weryfikacji ręcznej pod adresem `http://localhost:8000`.
+4. **Precyzyjny opis wyników testów integracyjnych i checklista:**
+   - Zaktualizowano `README.md` oraz `README.txt`, wklejając rzeczywisty, dosłowny listing wyników pakietu `tests/qa_test.php` (TEST 1 do TEST 8, 21/21 asercji PASS, kod powrotu 0).
+   - Włączono do dokumentacji pełną 6-punktową checklistę ręcznej weryfikacji przepływów HTTP i interfejsu użytkownika w przeglądarce pod adresem `http://localhost:8000`.
+   - Zsynchronizowano opis komunikatu statusu zasilenia w `database/seed.sql`.
 
 ### 3.2 Zmienione Pliki
 | Ścieżka | Typ | Opis |
 | :--- | :--- | :--- |
-| `README.md` | Zaktualizowany | Korekta wersji MySQL, procedury instalacji, konfiguracji i opisu testów. |
-| `README.txt` | Zaktualizowany | Odzwierciedlenie zmian z `README.md` w pliku tekstowym. |
+| `README.md` | Zaktualizowany | Korekta wersji MySQL, procedury instalacji, konfiguracji, dosłowny listing QA i checklista ręczna. |
+| `README.txt` | Zaktualizowany | Odzwierciedlenie zmian z `README.md` w pliku tekstowym wraz z checklistą ręczną. |
 | `Docs/Final-Report.md` | Zaktualizowany | Wpisanie nowych ustaleń w podsumowaniu projektu. |
 | `Docs/Sessions/Github-Doc.md` | Zaktualizowany | Niniejszy raport sesji. |
 

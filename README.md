@@ -292,19 +292,40 @@ Pakiet zwraca kod zakończenia `0` w przypadku zaliczenia wszystkich asercji lub
 
 Oczekiwany rezultat wykonania:
 ```text
-=== ROZPOCZĘCIE TESTÓW AUDYTU QA & CONTENT DLA CINEHUB ===
---- TEST 1: Weryfikacja Schematu i Połączenia PDO --- [PASS]
---- TEST 2: Zasilenie Danymi z pliku database/seed.sql --- [PASS]
---- TEST 3: Weryfikacja Agregacji i Pobierania Filmów --- [PASS]
---- TEST 4: Weryfikacja Szczegółów Filmu i Obsady --- [PASS]
---- TEST 5: Weryfikacja Walidacji i Dodawania Nowej Recenzji --- [PASS]
---- TEST 6: Weryfikacja Wielu Filmów dla Aktora (Relacja M:N) --- [PASS]
---- TEST 7: Weryfikacja Ochrony Przed XSS --- [PASS]
---- TEST 8: Weryfikacja Formularzy add_movie i add_actor --- [PASS]
---- TEST 9: Weryfikacja Przypisywania Obsady i Braku Duplikatów --- [PASS]
-=== PODSUMOWANIE TESTÓW QA & CONTENT ===
+=====================================================================
+  AUDYT QA & INTEGRACJI BAZY DANYCH DLA PROJEKTU CINEHUB
+=====================================================================
+Środowisko główne: SQLite 3 (Tymczasowa baza: test_cinehub_tmp.sqlite)
+Zakres testu: Weryfikacja DDL (schema.sql), DML (seed.sql), relacji M:N, idempotencji i bezpieczeństwa.
+Poza zakresem: Testy HTTP / UI w przeglądarce (wymagają weryfikacji ręcznej).
+---------------------------------------------------------------------
+
+--- TEST 1: Weryfikacja Schematu z Repozytorium (database/schema.sql) --- [PASS]
+--- TEST 2: Inicjalizacja Tabel z database/schema.sql w SQLite --- [PASS]
+--- TEST 3: Bezpieczeństwo DDL przy Ponownym Uruchomieniu --- [PASS]
+--- TEST 4: Zasilenie Danymi z database/seed.sql i Test Idempotencji --- [PASS]
+--- TEST 5: Weryfikacja Poprawności Wiązań Relacyjnych (M:N i 1:N) --- [PASS]
+--- TEST 6: Weryfikacja Ograniczeń CHECK oraz ON DELETE CASCADE --- [PASS]
+--- TEST 7: Ochrona Przed XSS w Warstwie Prezentacji --- [PASS]
+--- TEST 8: Weryfikacja Rzeczywistego Silnika MariaDB (Lokalna Baza Tymczasowa) --- [PASS]
+
+=====================================================================
+  PODSUMOWANIE PAKIETU TESTÓW QA & INTEGRACJI
+=====================================================================
 Zaliczono: 21 / 21
-Błędy: 0
+Błędy:     0
+Status:    SUKCES (Wszystkie asercje zaliczone)
+=====================================================================
+
+---------------------------------------------------------------------
+  RĘCZNA CHECKLISTA DLA PRZEPŁYWÓW HTTP / UI (WYMÓG INF.03):
+  1. Uruchom serwer WWW: php -S localhost:8000
+  2. Otwórz http://localhost:8000 i sprawdź katalog, filtry oraz sortowanie.
+  3. Wejdź w szczegóły filmu (np. film.php?id=1) i zweryfikuj obsadę oraz recenzje.
+  4. Wypełnij formularz recenzji (ocena 1-10) i sprawdź redirect PRG oraz Flash alert.
+  5. Wejdź w profil aktora (actor.php?id=1) i sprawdź filmografię.
+  6. Przetestuj formularze add_movie.php, add_actor.php i assign_actor.php.
+---------------------------------------------------------------------
 ```
 
 ---

@@ -214,8 +214,9 @@ cinehub/
 ├── config/
 │   └── database.php                - Połączenie PDO z bazą danych (localhost / socket)
 ├── database/
-│   ├── schema.sql                  - Struktura DDL (filmy, aktorzy, obsada, recenzje)
-│   └── seed.sql                    - Zasilenie danymi polskiego kina (DML)
+│   ├── schema.sql                  - Bezpieczna struktura DDL (CREATE TABLE IF NOT EXISTS)
+│   ├── seed.sql                    - Idempotentne zasilenie danymi polskiego kina (DML bez TRUNCATE)
+│   └── reset.sql                   - Opcjonalny, destrukcyjny skrypt resetu deweloperskiego (DROP TABLE)
 ├── frontend/
 │   ├── css/
 │   │   └── style.css               - Kinowy motyw Dark Mode (CSS Grid, RWD)
@@ -226,7 +227,7 @@ cinehub/
 │   ├── header.php                  - Wspólny nagłówek HTML5
 │   └── footer.php                  - Wspólna stopka HTML5
 ├── tests/
-│   └── qa_test.php                 - Zestaw 21 zautomatyzowanych testów integracyjnych
+│   └── qa_test.php                 - Zestaw 21 zautomatyzowanych testów integracyjnych (DDL, DML, CHECK)
 ├── index.php                       - Katalog filmów z filtrami i wyszukiwarką
 ├── film.php                        - Karta filmu, obsada, opinie i formularz recenzji
 ├── actors.php                      - Katalog aktorów
@@ -240,18 +241,27 @@ cinehub/
 
 7. INSTRUKCJA INSTALACJI I URUCHOMIENIA
 --------------------------------------------------------------------------------
-Wymagania: PHP 8.0+, serwer MySQL 5.7+ lub MariaDB 10.3+.
+Wymagania: PHP 8.0+, serwer MySQL 8.0.16+ lub MariaDB 10.3+.
+UWAGA: Wersje MySQL starsze niż 8.0.16 (np. MySQL 5.7) ignorują ograniczenia
+CHECK (ocena BETWEEN 1 AND 10) i nie są wspierane na poziomie silnika bazy.
 
-Krok 1: Wdrożenie bazy danych:
-  mariadb -u root -p cinehub_db < database/schema.sql
-  mariadb -u root -p cinehub_db < database/seed.sql
+Krok 1: Wdrożenie bazy danych (bezpieczne, bez usuwania istniejących danych):
+  mariadb -u root -p < database/schema.sql
+  mariadb -u root -p < database/seed.sql
+
+Opcjonalny reset deweloperski (UWAGA - usuwa wszystkie tabele i dane):
+  mariadb -u root -p cinehub_db < database/reset.sql
 
 Krok 2: Konfiguracja połączenia:
-  W pliku config/database.php upewnij się, że ustawione są właściwe dane dostępowe
-  (domyślnie: host 'localhost', baza 'cinehub_db', użytkownik 'root', hasło 'root' lub '').
+  W pliku config/database.php ustawione są domyślne parametry lokalne:
+  host: 'localhost' (gniazdo uniksowe /var/lib/mysql/mysql.sock w Linux, port 3306 w Windows),
+  użytkownik: 'root', hasło: 'root' (lub puste w XAMPP: export DB_PASS=""), baza: 'cinehub_db'.
+  Dla połączeń wymuszających TCP: export DB_HOST="127.0.0.1" oraz export DB_PORT="3306".
 
 Krok 3: Uruchomienie testów integracyjnych:
   php tests/qa_test.php
+  (Weryfikuje DDL z schema.sql, DML z seed.sql, CHECK i relacje M:N na SQLite oraz MariaDB.
+   Testy nie symulują stosu HTTP - formularze i UI wymagają weryfikacji ręcznej).
 
 Krok 4: Uruchomienie serwera WWW:
   php -S localhost:8000

@@ -50,13 +50,31 @@ Głównym zadaniem Content Agenta było przygotowanie bogatego, realistycznego i
 
 ---
 
-## 4. Aktualizacja Sesji Content Agenta: Potwierdzenie Zasilenia Bazy (2026-11-12)
-- **Weryfikacja na serwerze MariaDB:**
-  - Potwierdzono pomyślny import i dostępność pełnego zestawu danych początkowych z `database/seed.sql` w aktywnej bazie `cinehub_db`.
-  - Sprawdzono spójność danych: 8 filmów, 19 aktorów, 21 ról w obsadzie oraz 17 recenzji.
-- **Rozgraniczenie z rolą DBA:**
-  - Content Agent odpowiada wyłącznie za autentyczność merytoryczną, historyczną i popkulturową zasilanych rekordów (kanon polskiego kina, rzetelne biogramy, cytaty ról i recenzje).
-  - Kwestie techniczne, wydajność indeksów, definicje kluczy obcych i mechanizmy połączeń pozostają pod wyłącznym nadzorem Administratora Bazy Danych (DBA).
+## 4. Aktualizacja Sesji: Bezpieczeństwo Seeda, Idempotencja i Dynamiczne Klucze (2026-11-12)
+
+### 4.1 Zakres Wykonanych Prac
+1. **Wyeliminowanie ryzyka utraty danych (usunięcie TRUNCATE):**
+   - Ze skryptu `database/seed.sql` bezwzględnie usunięto instrukcje `TRUNCATE TABLE`, które dotychczas czyściły całą bazę przy każdym ponownym uruchomieniu seeda.
+2. **Idempotencja i ochrona przed duplikacją (`WHERE NOT EXISTS`):**
+   - Wszystkie instrukcje `INSERT INTO` dla filmów, aktorów, obsady i recenzji zostały przekształcone w zapytania warunkowe `INSERT INTO ... SELECT ... WHERE NOT EXISTS (...)`.
+   - Dzięki temu wielokrotne uruchomienie `seed.sql` jest w 100% bezpieczne – nie tworzy duplikatów i nie modyfikuje rekordów dodanych przez użytkownika.
+3. **Usunięcie stałych identyfikatorów (`id`) i dynamiczne wiązania kluczy:**
+   - Wyeliminowano sztywne wpisywanie kluczy głównych `(1, 2, ...)`.
+   - Powiązania w tabelach asocjacyjnych `obsada` i `recenzje` są teraz pobierane dynamicznie na podstawie unikalnych kluczy biznesowych (tytuł filmu + reżyser oraz imię + nazwisko aktora).
+   - Zapobiega to błędnemu powiązaniu ról lub recenzji w sytuacji, gdy w bazie istnieją już wcześniej dodane rekordy z innymi numerami `AUTO_INCREMENT`.
+
+### 4.2 Zmienione Pliki
+- `database/seed.sql` – przepisanie zapytań na idempotentne z dynamicznym wyznaczaniem kluczy obcych.
+- `Docs/Sessions/Content.md` – zaktualizowany niniejszy raport.
+
+### 4.3 Wyniki Weryfikacji
+- Pakiet `tests/qa_test.php` (Test 4 i 5):
+  - Pierwsze uruchomienie wstawiło: 8 filmów, 19 aktorów, 21 ról w obsadzie i 17 recenzji.
+  - Drugie natychmiastowe uruchomienie wstawiło dokładnie 0 nowych wierszy (brak duplikatów, pełna idempotencja).
+  - Wszystkie relacje obsadowe i recenzje są prawidłowo powiązane z filmami i aktorami.
+
+### 4.4 Granice Roli Content Agenta
+- Content Agent nie ingeruje w strukturę DDL (`schema.sql` / `reset.sql`), pozostawiając te pliki w wyłącznej gestii DBA.
 
 ---
 

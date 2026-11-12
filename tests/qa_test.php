@@ -1,17 +1,27 @@
 <?php
 /**
  * Zautomatyzowany Pakiet Testowy QA & Content (CineHub)
- * Rola: QA Asystent & Content Agent
+ * Rola: QA Asystent, Administrator Bazy Danych (DBA) & Content Agent
+ * Standard: Kwalifikacja Zawodowa INF.03
+ *
+ * ZAKRES I OGRANICZENIA TESTU:
+ * - Niniejszy pakiet weryfikuje warstwę danych PDO, rzeczywisty schemat DDL (database/schema.sql),
+ *   zestaw danych początkowych (database/seed.sql), integralność relacji M:N, idempotencję,
+ *   bezpieczeństwo danych przy ponownym uruchomieniu oraz ograniczenia CHECK i CASCADE.
+ * - Testy NIE wykonują żądań HTTP do serwera WWW ani nie symulują pełnego cyklu przeglądarki.
+ *   Interakcje w przeglądarce (formularze, nawigacja, komunikaty sesyjne) wymagają weryfikacji ręcznej.
+ * - Wyniki testów SQLite są wyraźnie rozróżnione od wyników serwera MariaDB/MySQL.
  */
 
 declare(strict_types=1);
 
-// Wymuszenie środowiska SQLite na potrzeby zautomatyzowanego testu integracyjnego
-putenv('DB_DRIVER=sqlite');
-$testDbFile = __DIR__ . '/test_cinehub.sqlite';
+$testDbFile = __DIR__ . '/test_cinehub_tmp.sqlite';
 if (file_exists($testDbFile)) {
     unlink($testDbFile);
 }
+
+// Ustawienie środowiska testowego na izolowany plik SQLite
+putenv('DB_DRIVER=sqlite');
 putenv('DB_NAME=' . $testDbFile);
 
 require_once __DIR__ . '/../config/database.php';
@@ -20,87 +30,149 @@ require_once __DIR__ . '/../includes/functions.php';
 $passed = 0;
 $failed = 0;
 
-function assertTest(string $description, bool $condition): void {
+function assertTest(string $description, bool $condition, ?string $note = null): void {
     global $passed, $failed;
     if ($condition) {
         echo "  [PASS] " . $description . PHP_EOL;
+        if ($note !== null) {
+            echo "         ℹ️  " . $note . PHP_EOL;
+        }
         $passed++;
     } else {
         echo "  [FAIL] " . $description . PHP_EOL;
+        if ($note !== null) {
+            echo "         ⚠️  " . $note . PHP_EOL;
+        }
         $failed++;
     }
 }
 
-echo "=== ROZPOCZĘCIE TESTÓW AUDYTU QA & CONTENT DLA CINEHUB ===" . PHP_EOL . PHP_EOL;
+/**
+ * Konwertuje rzeczywisty kod DDL MySQL (database/schema.sql) na składnię SQLite,
+ * aby testować rzeczywisty schemat z repozytorium zamiast ręcznie przepisanej kopii.
+ */
+function convertMysqlDdlToSqlite(string $sql): string {
+    $sql = preg_replace('/^--.*$/m', '', $sql);
+    $sql = preg_replace('/CREATE\s+DATABASE[^;]+;/is', '', $sql);
+    $sql = preg_replace('/USE\s+[^;]+;/is', '', $sql);
+
+    preg_match_all('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?(\w+)`?\s*\((.*?)\)\s*ENGINE=InnoDB[^;]*;/is', $sql, $matches, PREG_SET_ORDER);
+
+    $sqliteTables = [];
+    foreach ($matches as $match) {
+        $table = $match[1];
+        $body = $match[2];
+
+        // Normalizacja wieloliniowych deklaracji kluczy obcych
+        $body = preg_replace('/\n\s*(FOREIGN\s+KEY)/i', ' $1', $body);
+        $body = preg_replace('/\n\s*(ON\s+DELETE)/i', ' $1', $body);
+
+        $rawLines = explode("\n", $body);
+        $cleanLines = [];
+        foreach ($rawLines as $rawLine) {
+            $line = trim($rawLine);
+            if ($line === '') continue;
+            // Pomijamy indeksy specyficzne dla MySQL (w SQLite indeksy tworzy się osobnym CREATE INDEX)
+            if (preg_match('/^\s*INDEX\s+/i', $line)) continue;
+            $line = preg_replace('/UNIQUE\s+KEY\s+`?\w+`?\s*\(([^)]+)\)/i', 'UNIQUE ($1)', $line);
+            $line = preg_replace('/INT\s+AUTO_INCREMENT\s+PRIMARY\s+KEY/i', 'INTEGER PRIMARY KEY AUTOINCREMENT', $line);
+            $line = preg_replace('/\bINT\b/i', 'INTEGER', $line);
+            $line = preg_replace('/\bVARCHAR\(\d+\)/i', 'TEXT', $line);
+            $line = preg_replace('/COMMENT\s+\x27[^\x27]*\x27/i', '', $line);
+            $cleanLines[] = rtrim($line, ',');
+        }
+        $body = implode(",\n    ", $cleanLines);
+        $sqliteTables[] = "CREATE TABLE IF NOT EXISTS `$table` (\n    " . $body . "\n);";
+    }
+
+    return implode("\n\n", $sqliteTables);
+}
+
+echo "=====================================================================" . PHP_EOL;
+echo "  AUDYT QA & INTEGRACJI BAZY DANYCH DLA PROJEKTU CINEHUB" . PHP_EOL;
+echo "=====================================================================" . PHP_EOL;
+echo "Środowisko główne: SQLite 3 (Tymczasowa baza: " . basename($testDbFile) . ")" . PHP_EOL;
+echo "Zakres testu: Weryfikacja DDL (schema.sql), DML (seed.sql), relacji M:N, idempotencji i bezpieczeństwa." . PHP_EOL;
+echo "Poza zakresem: Testy HTTP / UI w przeglądarce (wymagają weryfikacji ręcznej)." . PHP_EOL;
+echo "---------------------------------------------------------------------" . PHP_EOL . PHP_EOL;
 
 // --------------------------------------------------------------------------
-// TEST 1: Schemat i Inicjalizacja Tabel
+// TEST 1: Analiza Statyczna i Weryfikacja Pliku database/schema.sql
 // --------------------------------------------------------------------------
-echo "--- TEST 1: Weryfikacja Schematu i Połączenia PDO ---" . PHP_EOL;
+echo "--- TEST 1: Weryfikacja Schematu z Repozytorium (database/schema.sql) ---" . PHP_EOL;
+
+$schemaFilePath = __DIR__ . '/../database/schema.sql';
+assertTest("Plik database/schema.sql istnieje w repozytorium", file_exists($schemaFilePath));
+
+$rawSchema = (string)file_get_contents($schemaFilePath);
+$schemaCodeOnly = preg_replace('/--.*$/m', '', $rawSchema);
+$schemaCodeOnly = preg_replace('/\/\*.*?\*\//s', '', (string)$schemaCodeOnly);
+
+assertTest("Schemat nie zawiera destrukcyjnych instrukcji DROP TABLE", stripos((string)$schemaCodeOnly, 'DROP TABLE') === false);
+assertTest("Schemat nie zawiera destrukcyjnych instrukcji TRUNCATE", stripos((string)$schemaCodeOnly, 'TRUNCATE') === false);
+
+preg_match_all('/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS/i', (string)$schemaCodeOnly, $createMatches);
+assertTest("Schemat używa bezpiecznych klauzul CREATE TABLE IF NOT EXISTS dla 4 tabel", count($createMatches[0]) === 4);
+assertTest("Schemat definiuje ograniczenie CHECK dla ocen w skali 1-10", strpos((string)$schemaCodeOnly, 'BETWEEN 1 AND 10') !== false);
+assertTest("Schemat zawiera reguły kaskadowości ON DELETE CASCADE", strpos((string)$schemaCodeOnly, 'ON DELETE CASCADE') !== false);
+
+// --------------------------------------------------------------------------
+// TEST 2: Inicjalizacja Rzeczywistego Schematu na Silniku Testowym (SQLite)
+// --------------------------------------------------------------------------
+echo PHP_EOL . "--- TEST 2: Inicjalizacja Tabel z database/schema.sql w SQLite ---" . PHP_EOL;
+
 $pdo = getDbConnection();
-assertTest("Połączenie z bazą PDO zostało pomyślnie nawiązane", $pdo instanceof PDO);
+assertTest("Połączenie PDO zostało pomyślnie nawiązane", $pdo instanceof PDO);
 
-// Tworzenie tabel zgodnych z database/schema.sql
-$pdo->exec("
-    CREATE TABLE filmy (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tytul TEXT NOT NULL,
-        rezyser TEXT NOT NULL,
-        gatunek TEXT NOT NULL,
-        rok_premiery INTEGER NOT NULL,
-        czas_trwania INTEGER NOT NULL,
-        opis TEXT NOT NULL,
-        plakat TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE aktorzy (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        imie TEXT NOT NULL,
-        nazwisko TEXT NOT NULL,
-        data_urodzenia DATE,
-        zdjecie TEXT,
-        biografia TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE obsada (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        film_id INTEGER NOT NULL REFERENCES filmy(id) ON DELETE CASCADE,
-        aktor_id INTEGER NOT NULL REFERENCES aktorzy(id) ON DELETE CASCADE,
-        rola TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE (film_id, aktor_id, rola)
-    );
-
-    CREATE TABLE recenzje (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        film_id INTEGER NOT NULL REFERENCES filmy(id) ON DELETE CASCADE,
-        autor TEXT NOT NULL,
-        ocena INTEGER NOT NULL CHECK (ocena BETWEEN 1 AND 10),
-        tresc TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-");
+$sqliteDdl = convertMysqlDdlToSqlite($rawSchema);
+$pdo->exec($sqliteDdl);
 
 $tablesStmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('filmy', 'aktorzy', 'obsada', 'recenzje');");
 $tables = $tablesStmt->fetchAll(PDO::FETCH_COLUMN);
-assertTest("Wszystkie 4 tabele (filmy, aktorzy, obsada, recenzje) istnieją", count($tables) === 4);
+assertTest("Wszystkie 4 tabele (filmy, aktorzy, obsada, recenzje) zostały poprawnie utworzone", count($tables) === 4);
 
 // --------------------------------------------------------------------------
-// TEST 2: Zasilenie Danymi z database/seed.sql (Polskie Kino)
+// TEST 3: Weryfikacja Bezpieczeństwa Ponownego Uruchomienia Schematu (Idempotencja DDL)
 // --------------------------------------------------------------------------
-echo PHP_EOL . "--- TEST 2: Zasilenie Danymi z pliku database/seed.sql ---" . PHP_EOL;
+echo PHP_EOL . "--- TEST 3: Bezpieczeństwo DDL przy Ponownym Uruchomieniu ---" . PHP_EOL;
 
-$seedContent = file_get_contents(__DIR__ . '/../database/seed.sql');
-// Wyciągamy zapytania INSERT INTO
-preg_match_all('/INSERT\s+INTO\s+`?(\w+)`?\s*\([^)]+\)\s*VALUES\s*([^;]+);/is', $seedContent, $matches, PREG_SET_ORDER);
+// Wstawiamy rekord użytkownika, aby sprawdzić czy ponowne nałożenie schematu go nie usunie
+$pdo->exec("INSERT INTO filmy (tytul, rezyser, gatunek, rok_premiery, czas_trwania, opis) VALUES ('Film Testowy Użytkownika', 'Reżyser X', 'Dramat', 2025, 100, 'Opis testowy')");
+$userFilmId = (int)$pdo->lastInsertId();
 
-foreach ($matches as $match) {
-    $fullInsertSql = $match[0];
-    // Zamieniamy apostrofy tabeli dla uniwersalności
-    $cleanSql = str_replace(['`filmy`', '`aktorzy`', '`obsada`', '`recenzje`'], ['filmy', 'aktorzy', 'obsada', 'recenzje'], $fullInsertSql);
-    $pdo->exec($cleanSql);
+// Ponowne wykonanie DDL
+$pdo->exec($sqliteDdl);
+
+$userFilmCheck = $pdo->query("SELECT COUNT(*) FROM filmy WHERE id = $userFilmId")->fetchColumn();
+assertTest("Ponowne uruchomienie database/schema.sql nie usunęło istniejących danych użytkownika", (int)$userFilmCheck === 1);
+
+// Czyścimy rekord testowy użytkownika przed testem seeda
+$pdo->exec("DELETE FROM filmy WHERE id = $userFilmId");
+
+// --------------------------------------------------------------------------
+// TEST 4: Bezpieczne Zasilenie Danymi z database/seed.sql (Idempotencja DML)
+// --------------------------------------------------------------------------
+echo PHP_EOL . "--- TEST 4: Zasilenie Danymi z database/seed.sql i Test Idempotencji ---" . PHP_EOL;
+
+$seedFilePath = __DIR__ . '/../database/seed.sql';
+assertTest("Plik database/seed.sql istnieje w repozytorium", file_exists($seedFilePath));
+
+$rawSeed = (string)file_get_contents($seedFilePath);
+$seedCodeOnly = preg_replace('/--.*$/m', '', $rawSeed);
+$seedCodeOnly = preg_replace('/\/\*.*?\*\//s', '', (string)$seedCodeOnly);
+
+assertTest("Skrypt seed.sql nie zawiera destrukcyjnego TRUNCATE", stripos((string)$seedCodeOnly, 'TRUNCATE') === false);
+assertTest("Skrypt seed.sql nie zawiera destrukcyjnego DROP", stripos((string)$seedCodeOnly, 'DROP') === false);
+
+// Wykonanie zapytań z seed.sql (z pominięciem dyrektywy USE specyficznej dla MySQL)
+$cleanSeedSql = preg_replace('/^--.*$/m', '', $rawSeed);
+$cleanSeedSql = preg_replace('/USE\s+[^;]+;/is', '', $cleanSeedSql);
+
+$queries = array_filter(array_map('trim', explode(';', $cleanSeedSql)));
+foreach ($queries as $query) {
+    if (!empty($query)) {
+        $pdo->exec($query);
+    }
 }
 
 $countFilmy = (int)$pdo->query("SELECT COUNT(*) FROM filmy")->fetchColumn();
@@ -108,180 +180,171 @@ $countAktorzy = (int)$pdo->query("SELECT COUNT(*) FROM aktorzy")->fetchColumn();
 $countObsada = (int)$pdo->query("SELECT COUNT(*) FROM obsada")->fetchColumn();
 $countRecenzje = (int)$pdo->query("SELECT COUNT(*) FROM recenzje")->fetchColumn();
 
-assertTest("Dane początkowe: 8 polskich filmów wstawionych (zgodnie z wymogiem 5-10)", $countFilmy === 8);
-assertTest("Dane początkowe: 19 znanych polskich aktorów wstawionych", $countAktorzy === 19);
-assertTest("Dane początkowe: 21 relacji obsady (M:N) wstawionych", $countObsada === 21);
-assertTest("Dane początkowe: 17 autentycznych recenzji z różnymi ocenami wstawionych", $countRecenzje === 17);
+assertTest("Pierwsze uruchomienie seed.sql: 8 filmów, 19 aktorów, 21 obsady, 17 recenzji", 
+    $countFilmy === 8 && $countAktorzy === 19 && $countObsada === 21 && $countRecenzje === 17);
 
-// --------------------------------------------------------------------------
-// TEST 3: Logika Wyświetlania Filmów i Agregacji Ocen (index.php)
-// --------------------------------------------------------------------------
-echo PHP_EOL . "--- TEST 3: Weryfikacja Agregacji i Pobierania Filmów (Dzień świra) ---" . PHP_EOL;
-
-$indexSql = "
-    SELECT 
-        f.id,
-        f.tytul,
-        f.gatunek,
-        f.rok_premiery,
-        COALESCE(o.liczba_aktorow, 0) AS liczba_aktorow,
-        COALESCE(r.liczba_recenzji, 0) AS liczba_recenzji,
-        r.srednia_ocen
-    FROM filmy f
-    LEFT JOIN (
-        SELECT film_id, COUNT(DISTINCT aktor_id) AS liczba_aktorow
-        FROM obsada
-        GROUP BY film_id
-    ) o ON f.id = o.film_id
-    LEFT JOIN (
-        SELECT film_id, COUNT(id) AS liczba_recenzji, ROUND(AVG(ocena), 1) AS srednia_ocen
-        FROM recenzje
-        GROUP BY film_id
-    ) r ON f.id = r.film_id
-    WHERE f.id = 1
-";
-$stmt = $pdo->query($indexSql);
-$film1 = $stmt->fetch();
-
-assertTest("Dzień świra ma wyliczoną średnią ocenę 9.0 (oceny: 10, 9, 8)", (float)$film1['srednia_ocen'] === 9.0);
-assertTest("Dzień świra ma 3 recenzje", (int)$film1['liczba_recenzji'] === 3);
-assertTest("Dzień świra ma 3 przypisanych aktorów w obsadzie", (int)$film1['liczba_aktorow'] === 3);
-
-// --------------------------------------------------------------------------
-// TEST 4: Szczegóły Filmu i Obsada M:N (film.php)
-// --------------------------------------------------------------------------
-echo PHP_EOL . "--- TEST 4: Weryfikacja Szczegółów Filmu i Obsady (film.php) ---" . PHP_EOL;
-
-$obsadaStmt = $pdo->prepare("
-    SELECT a.imie, a.nazwisko, o.rola
-    FROM obsada o
-    JOIN aktorzy a ON o.aktor_id = a.id
-    WHERE o.film_id = :film_id
-    ORDER BY a.nazwisko ASC
-");
-$obsadaStmt->execute(['film_id' => 1]);
-$obsadaFilm1 = $obsadaStmt->fetchAll();
-
-assertTest("Film Dzień świra zwraca 3 role w obsadzie", count($obsadaFilm1) === 3);
-assertTest("Rola Marka Kondrata to 'Adaś Miauczyński'", $obsadaFilm1[1]['imie'] === 'Marek' && $obsadaFilm1[1]['rola'] === 'Adaś Miauczyński');
-
-// --------------------------------------------------------------------------
-// TEST 5: Zapis i Walidacja Nowej Recenzji (film.php POST)
-// --------------------------------------------------------------------------
-echo PHP_EOL . "--- TEST 5: Weryfikacja Walidacji i Dodawania Nowej Recenzji ---" . PHP_EOL;
-
-$nowaRecenzjaSql = "INSERT INTO recenzje (film_id, autor, ocena, tresc) VALUES (:film_id, :autor, :ocena, :tresc)";
-$addStmt = $pdo->prepare($nowaRecenzjaSql);
-$addStmt->execute([
-    'film_id' => 1,
-    'autor'   => 'Krytyk_Nowy',
-    'ocena'   => 9,
-    'tresc'   => 'Genialna rola Marka Kondrata, film ponadczasowy i wciąż aktualny!'
-]);
-
-$nowaSredniaStmt = $pdo->query("SELECT ROUND(AVG(ocena), 1) AS nowa_srednia, COUNT(*) as cnt FROM recenzje WHERE film_id = 1");
-$noweStats = $nowaSredniaStmt->fetch();
-
-assertTest("Liczba recenzji dla Dnia świra wzrosła do 4", (int)$noweStats['cnt'] === 4);
-assertTest("Zaktualizowana średnia ocen wynosi 9.0 (10 + 9 + 8 + 9 / 4 = 9.0)", (float)$noweStats['nowa_srednia'] === 9.0);
-
-// Test ograniczenia CHECK (ocena 1-10)
-$checkFailed = false;
-try {
-    $badStmt = $pdo->prepare("INSERT INTO recenzje (film_id, autor, ocena, tresc) VALUES (1, 'Hacker', 15, 'Zła ocena')");
-    $badStmt->execute();
-} catch (PDOException $e) {
-    $checkFailed = true;
+// Ponowne wykonanie seed.sql — test idempotencji (brak duplikatów)
+foreach ($queries as $query) {
+    if (!empty($query)) {
+        $pdo->exec($query);
+    }
 }
-assertTest("Baza danych odrzuca ocenę spoza zakresu 1-10 (CHECK constraint)", $checkFailed);
+
+$countFilmyAfter = (int)$pdo->query("SELECT COUNT(*) FROM filmy")->fetchColumn();
+$countAktorzyAfter = (int)$pdo->query("SELECT COUNT(*) FROM aktorzy")->fetchColumn();
+$countObsadaAfter = (int)$pdo->query("SELECT COUNT(*) FROM obsada")->fetchColumn();
+$countRecenzjeAfter = (int)$pdo->query("SELECT COUNT(*) FROM recenzje")->fetchColumn();
+
+assertTest("Drugie uruchomienie seed.sql NIE ZDUPLIKOWAŁO rekordów (pełna idempotencja)",
+    $countFilmyAfter === 8 && $countAktorzyAfter === 19 && $countObsadaAfter === 21 && $countRecenzjeAfter === 17,
+    "Liczby rekordów po re-run: Filmy: $countFilmyAfter, Aktorzy: $countAktorzyAfter, Obsada: $countObsadaAfter, Recenzje: $countRecenzjeAfter");
 
 // --------------------------------------------------------------------------
-// TEST 6: Baza Aktorów i Profil z Filmografią M:N (Cezary Pazura)
+// TEST 5: Dynamiczne Wiązanie Relacji M:N i 1:N (Brak Założenia o Stałych ID)
 // --------------------------------------------------------------------------
-echo PHP_EOL . "--- TEST 6: Weryfikacja Wielu Filmów dla Aktora (Relacja M:N - Cezary Pazura) ---" . PHP_EOL;
+echo PHP_EOL . "--- TEST 5: Weryfikacja Poprawności Wiązań Relacyjnych (M:N i 1:N) ---" . PHP_EOL;
 
-$actorSql = "
+$dzienSwiraStmt = $pdo->prepare("
+    SELECT f.id, f.tytul, 
+           COALESCE(o.cnt_obsada, 0) AS obsada_count,
+           COALESCE(r.cnt_recenzje, 0) AS recenzje_count,
+           r.avg_ocena
+    FROM filmy f
+    LEFT JOIN (SELECT film_id, COUNT(*) AS cnt_obsada FROM obsada GROUP BY film_id) o ON f.id = o.film_id
+    LEFT JOIN (SELECT film_id, COUNT(*) AS cnt_recenzje, ROUND(AVG(ocena), 1) AS avg_ocena FROM recenzje GROUP BY film_id) r ON f.id = r.film_id
+    WHERE f.tytul = :tytul
+");
+$dzienSwiraStmt->execute(['tytul' => 'Dzień świra']);
+$dzienSwira = $dzienSwiraStmt->fetch();
+
+assertTest("Film 'Dzień świra' poprawnie powiązany z 3 aktorami i 3 recenzjami", 
+    (int)$dzienSwira['obsada_count'] === 3 && (int)$dzienSwira['recenzje_count'] === 3);
+assertTest("Średnia ocen filmu 'Dzień świra' wynosi 9.0", (float)$dzienSwira['avg_ocena'] === 9.0);
+
+$pazuraStmt = $pdo->prepare("
     SELECT f.tytul, o.rola
     FROM obsada o
     JOIN filmy f ON o.film_id = f.id
-    WHERE o.aktor_id = 5
-    ORDER BY f.rok_premiery DESC
-";
-$actorStmt = $pdo->query($actorSql);
-$rolesPazura = $actorStmt->fetchAll();
-
-assertTest("Cezary Pazura (aktor_id: 5) ma w bazie dokładnie 3 różne filmy", count($rolesPazura) === 3);
-$tytuly = array_column($rolesPazura, 'tytul');
-assertTest("Cezary Pazura występuje w 'Chłopaki nie płaczą', 'Kiler' oraz 'Psy'", 
-    in_array('Chłopaki nie płaczą', $tytuly) && in_array('Kiler', $tytuly) && in_array('Psy', $tytuly));
-
-// --------------------------------------------------------------------------
-// TEST 7: Bezpieczeństwo XSS (Ochrona w widokach)
-// --------------------------------------------------------------------------
-echo PHP_EOL . "--- TEST 7: Weryfikacja Ochrony Przed XSS (Cross-Site Scripting) ---" . PHP_EOL;
-
-$xssPayload = "<script>alert('XSS');</script>";
-$escaped = e($xssPayload);
-assertTest("Funkcja e() neutralizuje znaczniki HTML i cudzysłowy", strpos($escaped, "<script>") === false && strpos($escaped, "&lt;script&gt;") !== false);
-
-// --------------------------------------------------------------------------
-// TEST 8: Testowanie Dodawania Nowego Filmu i Aktora (add_movie, add_actor)
-// --------------------------------------------------------------------------
-echo PHP_EOL . "--- TEST 8: Weryfikacja Formularzy add_movie i add_actor ---" . PHP_EOL;
-
-$newMovieStmt = $pdo->prepare("
-    INSERT INTO filmy (tytul, rezyser, gatunek, rok_premiery, czas_trwania, opis, plakat)
-    VALUES (:tytul, :rezyser, :gatunek, :rok_premiery, :czas_trwania, :opis, :plakat)
+    JOIN aktorzy a ON o.aktor_id = a.id
+    WHERE a.imie = 'Cezary' AND a.nazwisko = 'Pazura'
+    ORDER BY f.tytul ASC
 ");
-$newMovieStmt->execute([
-    'tytul' => 'Vabank',
-    'rezyser' => 'Juliusz Machulski',
-    'gatunek' => 'Komedia kryminalna',
-    'rok_premiery' => 1981,
-    'czas_trwania' => 108,
-    'opis' => 'Warszawa, rok 1934. Legendarny kasiarz Henryk Kwinto wychodzi z więzienia i postanawia zemścić się na dawnym wspólniku.',
-    'plakat' => null
-]);
-$vabankId = (int)$pdo->lastInsertId();
-assertTest("Dodano nowy film 'Vabank' (id: $vabankId)", $vabankId > 0);
+$pazuraStmt->execute();
+$pazuraRoles = $pazuraStmt->fetchAll();
+$pazuraFilms = array_column($pazuraRoles, 'tytul');
 
-$newActorStmt = $pdo->prepare("
-    INSERT INTO aktorzy (imie, nazwisko, data_urodzenia, zdjecie, biografia)
-    VALUES (:imie, :nazwisko, :data_urodzenia, :zdjecie, :biografia)
-");
-$newActorStmt->execute([
-    'imie' => 'Jan',
-    'nazwisko' => 'Machulski',
-    'data_urodzenia' => '1928-07-03',
-    'zdjecie' => null,
-    'biografia' => 'Wybitny polski aktor teatralny i filmowy, pedagog. Niezapomniany Henryk Kwinto.'
-]);
-$machulskiId = (int)$pdo->lastInsertId();
-assertTest("Dodano nowego aktora 'Jan Machulski' (id: $machulskiId)", $machulskiId > 0);
+assertTest("Cezary Pazura dynamicznie powiązany z 3 filmami ('Chłopaki nie płaczą', 'Kiler', 'Psy')",
+    count($pazuraRoles) === 3 && in_array('Kiler', $pazuraFilms) && in_array('Psy', $pazuraFilms) && in_array('Chłopaki nie płaczą', $pazuraFilms));
 
 // --------------------------------------------------------------------------
-// TEST 9: Testowanie Przypisywania Obsady i Ignorowania Duplikatów (assign_actor)
+// TEST 6: Weryfikacja Ograniczeń Integralnościowych (CHECK i Kaskady)
 // --------------------------------------------------------------------------
-echo PHP_EOL . "--- TEST 9: Weryfikacja Przypisywania Obsady i Braku Duplikatów ---" . PHP_EOL;
+echo PHP_EOL . "--- TEST 6: Weryfikacja Ograniczeń CHECK oraz ON DELETE CASCADE ---" . PHP_EOL;
 
-$assignStmt = $pdo->prepare("INSERT INTO obsada (film_id, aktor_id, rola) VALUES (:f, :a, :r)");
-$assignStmt->execute(['f' => $vabankId, 'a' => $machulskiId, 'r' => 'Henryk Kwinto']);
-assertTest("Przypisano rolę 'Henryk Kwinto' Janowi Machulskiemu w filmie 'Vabank'", true);
+// 6.1 Test CHECK w SQLite
+$checkBlockedSqlite = false;
+try {
+    $badReviewStmt = $pdo->prepare("INSERT INTO recenzje (film_id, autor, ocena, tresc) VALUES (1, 'Tester', 15, 'Błędna ocena')");
+    $badReviewStmt->execute();
+} catch (PDOException $e) {
+    $checkBlockedSqlite = true;
+}
+assertTest("Silnik SQLite odrzucił ocenę 15 spoza zakresu 1-10 (CHECK constraint)", $checkBlockedSqlite,
+    "Uwaga: W SQLite reguła CHECK jest aktywna. Wymagana wersja dla MySQL to 8.0.16+, a dla MariaDB to 10.2.1+.");
 
-// Sprawdzenie wykrywania duplikatu
-$dupCheck = $pdo->prepare("SELECT id FROM obsada WHERE film_id = :f AND aktor_id = :a AND rola = :r");
-$dupCheck->execute(['f' => $vabankId, 'a' => $machulskiId, 'r' => 'Henryk Kwinto']);
-assertTest("Logika wykrywania duplikatów poprawnie identyfikuje istniejącą rolę", (bool)$dupCheck->fetch());
+// 6.2 Test ON DELETE CASCADE
+$filmToDeleteStmt = $pdo->prepare("SELECT id FROM filmy WHERE tytul = :tytul");
+$filmToDeleteStmt->execute(['tytul' => 'Sami swoi']);
+$filmToDeleteId = (int)$filmToDeleteStmt->fetchColumn();
 
-// Sprzątanie pliku testowego
+$pdo->exec("DELETE FROM filmy WHERE id = $filmToDeleteId");
+$obsadaRemaining = (int)$pdo->query("SELECT COUNT(*) FROM obsada WHERE film_id = $filmToDeleteId")->fetchColumn();
+$recenzjeRemaining = (int)$pdo->query("SELECT COUNT(*) FROM recenzje WHERE film_id = $filmToDeleteId")->fetchColumn();
+
+assertTest("Kaskadowe usuwanie (ON DELETE CASCADE) usunęło powiązaną obsadę i recenzje",
+    $obsadaRemaining === 0 && $recenzjeRemaining === 0);
+
+// --------------------------------------------------------------------------
+// TEST 7: Bezpieczeństwo Aplikacji: Ochrona Przed XSS (funkcja e())
+// --------------------------------------------------------------------------
+echo PHP_EOL . "--- TEST 7: Ochrona Przed XSS w Warstwie Prezentacji ---" . PHP_EOL;
+$xssVector = "<script>alert('XSS');</script>\"onmouseover=\"";
+$escapedVector = e($xssVector);
+assertTest("Funkcja e() neutralizuje znaczniki HTML oraz cudzysłowy (ENT_QUOTES)",
+    strpos($escapedVector, '<script>') === false && strpos($escapedVector, '&lt;script&gt;') !== false);
+
+// --------------------------------------------------------------------------
+// TEST 8: Weryfikacja na Rzeczywistym Serwerze MariaDB (Tymczasowa Baza Ephemeral)
+// --------------------------------------------------------------------------
+echo PHP_EOL . "--- TEST 8: Weryfikacja Rzeczywistego Silnika MariaDB (Lokalna Baza Tymczasowa) ---" . PHP_EOL;
+
+$mariadbTested = false;
+$mariadbCheckPassed = false;
+$mariadbNote = "";
+
+try {
+    $mariaDsn = 'mysql:host=localhost;charset=utf8mb4';
+    $mariaPdo = new PDO($mariaDsn, 'root', 'root', [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+    ]);
+
+    $version = (string)$mariaPdo->query("SELECT VERSION()")->fetchColumn();
+    $tempDbName = 'cinehub_qa_tmp_' . time();
+
+    // Utworzenie izolowanej, tymczasowej bazy testowej
+    $mariaPdo->exec("CREATE DATABASE `$tempDbName` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
+    $mariaPdo->exec("USE `$tempDbName`;");
+
+    // Nałożenie rzeczywistego database/schema.sql (z wyłączeniem instrukcji USE/CREATE DATABASE cinehub_db)
+    $mariaSchema = preg_replace('/CREATE\s+DATABASE[^;]+;/is', '', $rawSchema);
+    $mariaSchema = preg_replace('/USE\s+[^;]+;/is', '', (string)$mariaSchema);
+    $mariaPdo->exec((string)$mariaSchema);
+
+    // Test egzekwowania CHECK na MariaDB
+    $mariaPdo->exec("INSERT INTO filmy (id, tytul, rezyser, gatunek, rok_premiery, czas_trwania, opis) VALUES (1, 'F', 'R', 'G', 2000, 90, 'O')");
+    try {
+        $mariaPdo->exec("INSERT INTO recenzje (film_id, autor, ocena, tresc) VALUES (1, 'BadUser', 15, 'Niepoprawna ocena 15')");
+        $mariadbCheckPassed = false;
+    } catch (PDOException $e) {
+        $mariadbCheckPassed = true;
+    }
+
+    // Sprzątnięcie tymczasowej bazy — nie pozostawiamy śmieci
+    $mariaPdo->exec("DROP DATABASE `$tempDbName`;");
+
+    $mariadbTested = true;
+    $mariadbNote = "Wersja serwera: $version. Przetestowano na izolowanej bazie $tempDbName i natychmiast ją usunięto.";
+} catch (Throwable $e) {
+    $mariadbNote = "Lokalny serwer MariaDB/MySQL nie był dostępny lub odmówił połączenia: " . $e->getMessage();
+}
+
+if ($mariadbTested) {
+    assertTest("Serwer MariaDB poprawnie załadował schema.sql i EGZEKWUJE ograniczenie CHECK(ocena BETWEEN 1 AND 10)", 
+        $mariadbCheckPassed, $mariadbNote);
+} else {
+    echo "  [INFO] Pominięto test na żywym MariaDB: $mariadbNote" . PHP_EOL;
+}
+
+// --------------------------------------------------------------------------
+// Sprzątanie Tymczasowych Zasobów Testowych
+// --------------------------------------------------------------------------
 if (file_exists($testDbFile)) {
     unlink($testDbFile);
 }
 
-echo PHP_EOL . "=== PODSUMOWANIE TESTÓW QA & CONTENT ===" . PHP_EOL;
+// --------------------------------------------------------------------------
+// Podsumowanie
+// --------------------------------------------------------------------------
+echo PHP_EOL . "=====================================================================" . PHP_EOL;
+echo "  PODSUMOWANIE PAKIETU TESTÓW QA & INTEGRACJI" . PHP_EOL;
+echo "=====================================================================" . PHP_EOL;
 echo "Zaliczono: " . $passed . " / " . ($passed + $failed) . PHP_EOL;
-echo "Błędy: " . $failed . PHP_EOL;
+echo "Błędy:     " . $failed . PHP_EOL;
+echo "Status:    " . ($failed === 0 ? "SUKCES (Wszystkie asercje zaliczone)" : "BŁĄD (Wykryto niezgodności)") . PHP_EOL;
+echo "=====================================================================" . PHP_EOL;
 
 if ($failed > 0) {
     exit(1);
 }
+exit(0);

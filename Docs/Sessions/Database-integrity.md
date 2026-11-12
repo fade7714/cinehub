@@ -89,7 +89,39 @@ Wszystkie tabele korzystają z silnika transakcyjnego **InnoDB** z kodowaniem **
 
 ---
 
-## 5. Podsumowanie Wdrożeniowe
-- **Połączenie z bazą:** Aktywne, stabilne, czas odpowiedzi < 1 ms.
-- **Stan schematu:** Zgodny ze specyfikacją INF.03, klucze obce i kaskady w pełni funkcjonalne.
-- **Kolejne kroki:** Monitorowanie wydajności zapytań analitycznych przy dalszej rozbudowie aplikacji.
+## 5. Aktualizacja Sesji DBA: Ochrona Przed Utratą Danych i Wersje DBMS (2026-11-12)
+
+### 5.1 Zakres Wykonanych Działań
+1. **Zabezpieczenie skryptu instalacyjnego DDL (`database/schema.sql`):**
+   - Usunięto destrukcyjne instrukcje `DROP TABLE IF EXISTS` ze standardowej procedury instalacyjnej.
+   - Wprowadzono klauzule `CREATE TABLE IF NOT EXISTS` dla wszystkich 4 tabel (`filmy`, `aktorzy`, `obsada`, `recenzje`).
+   - Dodano precyzyjny nagłówek dokumentacyjny wyjaśniający, że skrypt służy do świeżej instalacji i nie stanowi narzędzia migracji.
+2. **Wydzielenie operacji resetowania bazy (`database/reset.sql`):**
+   - Utworzono dedykowany skrypt `database/reset.sql` zawierający sekwencję `SET FOREIGN_KEY_CHECKS = 0; DROP TABLE IF EXISTS ...; SET FOREIGN_KEY_CHECKS = 1;` oraz ponowne utworzenie czystych tabel.
+   - Opatrzono skrypt widocznym ostrzeżeniem o bezpowrotnym kasowaniu danych. Skrypt został całkowicie odseparowany od standardowej instrukcji instalacyjnej w `README.md`.
+3. **Doprecyzowanie konfiguracji PDO (`config/database.php`):**
+   - Zaktualizowano definicję `DB_PASS`: `getenv('DB_PASS') !== false ? getenv('DB_PASS') : 'root'`, co umożliwia przekazanie jawnie pustego hasła (`export DB_PASS=""`) w środowiskach typu XAMPP.
+   - Pozostawiono `DB_HOST=localhost` gwarantujący automatyczne korzystanie z gniazda uniksowego w systemach Linux oraz portu 3306 w Windows/Docker.
+4. **Analiza egzekwowania ograniczeń `CHECK` a wersje serwera MySQL / MariaDB:**
+   - Przeprowadzono testy na lokalnym serwerze MariaDB 11.8.8 (baza ephemeral `cinehub_qa_tmp_*`). Potwierdzono, że silnik odrzuca oceny spoza zakresu 1-10 (`SQLSTATE[23000] CHECK constraint failed`).
+   - Potwierdzono, że wersje MySQL starsze niż 8.0.16 (w tym MySQL 5.7) ignorują ograniczenia `CHECK`, dlatego oficjalną minimalną wersją projektu zadeklarowano **MySQL 8.0.16+** oraz **MariaDB 10.3+**.
+
+### 5.2 Zmienione i Utworzone Pliki
+- `database/schema.sql` – zmodyfikowany (usunięcie DROP TABLE, dodanie IF NOT EXISTS).
+- `database/reset.sql` – utworzony (dedykowany, ostrzeżony reset bazy).
+- `config/database.php` – zmodyfikowany (obsługa pustego hasła i dokumentacja socket/TCP).
+- `Docs/Sessions/Database-integrity.md` – zaktualizowany niniejszy raport.
+
+### 5.3 Wyniki Weryfikacji
+- `tests/qa_test.php`: Testy 1, 2, 3 i 8 potwierdziły poprawność DDL, idempotencję oraz egzekwowanie `CHECK` na silniku MariaDB.
+- Ponowne nałożenie `schema.sql` nie usunęło rekordu testowego użytkownika.
+
+### 5.4 Pozostałe Kwestie
+- W standardowej procedurze wdrożeniowej nie wolno łączyć `reset.sql` z normalnym uruchomieniem.
+
+---
+
+## 6. Podsumowanie Wdrożeniowe
+- **Połączenie z bazą:** Aktywne, stabilne, domyślna konfiguracja szkolna spójna z `README.md`.
+- **Stan schematu:** W 100% bezpieczny dla danych użytkownika (brak DROP TABLE przy instalacji).
+- **Kolejne kroki:** Okresowy audyt spójności indeksów i relacji przy rozszerzaniu bazy o nowe tabele.

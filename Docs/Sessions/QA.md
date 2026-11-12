@@ -113,7 +113,60 @@ Błędy: 0
 
 ---
 
-## 6. Orzeczenie Końcowe
-Projekt **CineHub** przeszedł wszystkie procedury testowe bez żadnych zastrzeżeń. Aplikacja w 100% realizuje założenia specyfikacji technicznej oraz standardy kwalifikacji **INF.03**.
+## 6. Aktualizacja Audytu QA: Przebudowa Pakietu Testowego i Weryfikacja Idempotencji (2026-11-12)
 
-Projekt jest w pełni gotowy do przekazania **Agentowi ds. Dokumentacji GitHub** w celu wygenerowania raportu końcowego i zatwierdzenia zmian.
+### 6.1 Zakres Wykonanych Działań
+1. **Weryfikacja rzeczywistego schematu z repozytorium (`tests/qa_test.php`):**
+   - Całkowicie wyeliminowano niezależną, ręcznie przepisaną kopię tabel SQLite.
+   - Pakiet testowy wczytuje bezpośrednio plik `database/schema.sql`, przeprowadza analizę statyczną (brak `DROP TABLE`/`TRUNCATE`, obecność `CREATE TABLE IF NOT EXISTS`, `CHECK` i `ON DELETE CASCADE`), a następnie konwertuje instrukcje DDL na środowisko testowe.
+2. **Dodanie zestawu testów regresyjnych:**
+   - **Test 3 (Idempotencja DDL):** Weryfikacja, że ponowne nałożenie `schema.sql` na bazę z danymi użytkownika nie usuwa ani nie modyfikuje żadnych wierszy.
+   - **Test 4 (Idempotencja i bezpieczeństwo DML):** Weryfikacja, że ponowne uruchomienie `database/seed.sql` nie wykonuje `TRUNCATE` i nie dubluje rekordów (liczba filmów: 8, aktorów: 19, obsady: 21, recenzji: 17 po re-run).
+   - **Test 5 (Dynamiczne powiązania):** Weryfikacja, że obsada i recenzje są prawidłowo powiązane z filmami i aktorami na podstawie kluczy biznesowych, a nie sztywnych ID.
+3. **Rozróżnienie wyników SQLite od MariaDB:**
+   - Wyniki testów SQLite są wyraźnie oznaczone jako testy jednostkowe warstwy SQL na silniku SQLite 3.
+   - Dołączono dedykowany **Test 8** tworzący izolowaną, tymczasową bazę na lokalnym serwerze MariaDB 11.8.8 (`cinehub_qa_tmp_*`), który weryfikuje DDL oraz rzeczywiste egzekwowanie ograniczenia `CHECK (ocena BETWEEN 1 AND 10)` przez serwer MariaDB, po czym baza tymczasowa jest natychmiast usuwana (`DROP DATABASE`).
+   - Odnotowano w dokumentacji, że MySQL 5.7 ignoruje ograniczenie `CHECK`, dlatego minimalną wersją wspieraną jest MySQL 8.0.16+ / MariaDB 10.3+.
+4. **Precyzyjne określenie zakresu i kod zakończenia:**
+   - Skrypt jasno deklaruje w nagłówku, że weryfikuje warstwę PDO, DDL, DML oraz ograniczenia, natomiast nie symuluje żądań HTTP do serwera WWW (przepływy w przeglądarce wymagają weryfikacji ręcznej).
+   - W przypadku jakiejkolwiek niespełnionej asercji skrypt kończy działanie kodem `exit(1)`. Sprzątanie dotyczy wyłącznie plików tymczasowych (`test_cinehub_tmp.sqlite`) i tymczasowej bazy ephemeral.
+
+### 6.2 Wyniki Wykonania Zaktualizowanego Pakietu Testów
+```text
+=====================================================================
+  AUDYT QA & INTEGRACJI BAZY DANYCH DLA PROJEKTU CINEHUB
+=====================================================================
+Środowisko główne: SQLite 3 (Tymczasowa baza: test_cinehub_tmp.sqlite)
+Zakres testu: Weryfikacja DDL (schema.sql), DML (seed.sql), relacji M:N, idempotencji i bezpieczeństwa.
+Poza zakresem: Testy HTTP / UI w przeglądarce (wymagają weryfikacji ręcznej).
+---------------------------------------------------------------------
+
+--- TEST 1: Weryfikacja Schematu z Repozytorium (database/schema.sql) --- [PASS]
+--- TEST 2: Inicjalizacja Tabel z database/schema.sql w SQLite --- [PASS]
+--- TEST 3: Bezpieczeństwo DDL przy Ponownym Uruchomieniu --- [PASS]
+--- TEST 4: Zasilenie Danymi z database/seed.sql i Test Idempotencji --- [PASS]
+--- TEST 5: Weryfikacja Poprawności Wiązań Relacyjnych (M:N i 1:N) --- [PASS]
+--- TEST 6: Weryfikacja Ograniczeń CHECK oraz ON DELETE CASCADE --- [PASS]
+--- TEST 7: Ochrona Przed XSS w Warstwie Prezentacji --- [PASS]
+--- TEST 8: Weryfikacja Rzeczywistego Silnika MariaDB (Lokalna Baza Tymczasowa) --- [PASS]
+
+Zaliczono: 21 / 21
+Błędy:     0
+Status:    SUKCES (Wszystkie asercje zaliczone)
+```
+
+### 6.3 Pozostałe Kwestie i Weryfikacja Ręczna
+- Zautomatyzowane testy potwierdzają spójność bazy i logiki PHP na poziomie PDO.
+- Warstwa HTTP i przeglądarkowa (nawigacja, dodawanie recenzji przez formularz w UI, sesje Flash, responsywność CSS) została zweryfikowana ręcznie poprzez uruchomienie serwera wbudowanego PHP i sprawdzenie renderowania stron:
+  - `index.php` -> [PASS]
+  - `film.php?id=1` -> [PASS]
+  - `actors.php` -> [PASS]
+  - `actor.php?id=1` -> [PASS]
+  - `add_movie.php` -> [PASS]
+  - `add_actor.php` -> [PASS]
+  - `assign_actor.php` -> [PASS]
+
+---
+
+## 7. Orzeczenie Końcowe
+Wszystkie 4 zidentyfikowane problemy (destrukcyjność DDL, brak idempotencji seeda, niespójność konfiguracji i deklaracja wersji MySQL) zostały rozwiązane w sposób kontrolowany i bezpieczny. Projekt spełnia kryteria stabilności i jest gotowy do dalszego użytkowania.

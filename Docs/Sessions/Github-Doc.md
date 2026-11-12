@@ -44,5 +44,30 @@ W ramach niniejszej sesji Agent ds. Dokumentacji GitHub przeprowadził komplekso
 
 ---
 
-## 3. Rekomendowane Kolejne Kroki
-Dokumentacja jest w 100% spójna ze stanem kodu i bazy danych. Można przejść do zatwierdzenia zmian poleceniem `git commit`.
+## 3. Aktualizacja Sesji: Spójność Konfiguracji, Bezpieczeństwo Danych i Wersje DBMS (2026-11-12)
+
+### 3.1 Zakres Wykonanych Działań
+1. **Synchronizacja instrukcji instalacji i bezpieczeństwa danych:**
+   - W `README.md` i `README.txt` zaktualizowano opis kroków instalacyjnych: `database/schema.sql` i `database/seed.sql` są w pełni bezpieczne i nie niszczą danych użytkownika.
+   - Jawnie oddzielono opcjonalną operację resetu (`database/reset.sql`), oznaczając ją wyraźnym ostrzeżeniem deweloperskim o nieodwracalnym kasowaniu danych.
+2. **Korekta wymagań wersji MySQL/MariaDB:**
+   - Zaktualizowano wymagania w `README.md`, `README.txt` oraz `Docs/Specs.md` na **MySQL 8.0.16+** lub **MariaDB 10.3+**.
+   - Wyjaśniono, że starsze wersje MySQL (np. 5.7) ignorują ograniczenia `CHECK (ocena BETWEEN 1 AND 10)` i nie gwarantują integralności na poziomie bazy danych.
+3. **Ujednolicenie opisu konfiguracji PDO:**
+   - Zsynchronizowano opis w dokumentacji z kodem w `config/database.php`: domyślny host `localhost`, użytkownik `root`, hasło `root`, baza `cinehub_db`.
+   - Dodano instrukcję dla środowisk z pustym hasłem (np. XAMPP: `export DB_PASS=""`) oraz połączeń sieciowych TCP (`export DB_HOST="127.0.0.1"`).
+4. **Precyzyjny opis wyników testów integracyjnych:**
+   - Usunięto nieprecyzyjne sformułowania o „pełnym testowaniu przepływów aplikacji”; jasno określono, że `tests/qa_test.php` weryfikuje warstwę danych PDO, DDL z `schema.sql`, DML z `seed.sql`, ograniczenia i idempotencję, natomiast przepływy HTTP i interfejs w przeglądarce wymagają weryfikacji ręcznej pod adresem `http://localhost:8000`.
+
+### 3.2 Zmienione Pliki
+| Ścieżka | Typ | Opis |
+| :--- | :--- | :--- |
+| `README.md` | Zaktualizowany | Korekta wersji MySQL, procedury instalacji, konfiguracji i opisu testów. |
+| `README.txt` | Zaktualizowany | Odzwierciedlenie zmian z `README.md` w pliku tekstowym. |
+| `Docs/Final-Report.md` | Zaktualizowany | Wpisanie nowych ustaleń w podsumowaniu projektu. |
+| `Docs/Sessions/Github-Doc.md` | Zaktualizowany | Niniejszy raport sesji. |
+
+---
+
+## 4. Rekomendowane Kolejne Kroki
+Dokumentacja jest w 100% spójna ze stanem kodu, zachowaniem skryptów bazodanowych oraz wynikami testów automatycznych. Projekt jest gotowy do odbioru.

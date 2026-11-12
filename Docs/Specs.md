@@ -55,12 +55,19 @@ Projekt powstaje zgodnie z najlepszymi praktykami programistycznymi oraz standar
 
 ## 3. Wymagania Niefunkcjonalne i Architektoniczne
 
-- **Architektura:** Warstwowa, modularna architektura bez zbędnego narzutu frameworków (czysty, zoptymalizowany PHP 8.x + MySQL).
+- **Architektura:** Warstwowa, modularna architektura bez zbędnego narzutu frameworków (czysty, zoptymalizowany PHP 8.x + MySQL / MariaDB).
+- **Wymagania dotyczące Silnika Bazy Danych:**
+  - **MySQL 8.0.16+** lub **MariaDB 10.3+** (starsze wersje, w tym MySQL 5.7, nie egzekwują ograniczeń integralności `CHECK`, traktując je wyłącznie jako dekorację składniową).
+  - Silnik tabel: **InnoDB** (pełna transakcyjność, klucze obce z kaskadami `ON DELETE CASCADE ON UPDATE CASCADE`).
+  - Kodowanie: `utf8mb4` / `utf8mb4_unicode_ci`.
 - **Warstwa Danych:** Interfejs **PDO (PHP Data Objects)** z włączonymi wyjątkami (`PDO::ERRMODE_EXCEPTION`) i bezpiecznymi zapytaniami parametryzowanymi (**Prepared Statements**).
-- **Bezpieczeństwo:**
+- **Bezpieczeństwo i Idempotencja Danych:**
+  - Skrypt schematu `database/schema.sql` wykorzystuje wyłącznie klauzule `CREATE TABLE IF NOT EXISTS` – ponowne uruchomienie nie kasuje istniejących danych (brak `DROP TABLE` w standardowej instalacji).
+  - Skrypt danych `database/seed.sql` jest w pełni idempotentny – nie zawiera `TRUNCATE`, nie nadpisuje rekordów użytkownika, a relacje obsady i recenzji wyznacza dynamicznie bez polegania na stałych identyfikatorach.
+  - Opcjonalny reset deweloperski wydzielono do odrębnego, ostrzeżonego pliku `database/reset.sql`.
   - Ochrona przed **SQL Injection** poprzez wyłączne stosowanie zapytań przygotowanych (Prepared Statements).
   - Ochrona przed **XSS (Cross-Site Scripting)** przez filtrowanie i sanityzację wyjścia (`htmlspecialchars(..., ENT_QUOTES, 'UTF-8')`).
-  - Podwójna walidacja danych wejściowych: po stronie klienta (HTML5 / JavaScript) oraz po stronie serwera (PHP).
+  - Podwójna walidacja danych wejściowych: po stronie klienta (HTML5 / JavaScript) oraz po stronie serwera (PHP `filter_var`).
 - **Interfejs Użytkownika (Frontend):**
   - Semantyczny HTML5, nowoczesny i responsywny CSS3 (Flexbox/CSS Grid, kinowy motyw Dark Mode),
   - Vanilla JavaScript bez zewnętrznych bibliotek (asynchroniczność / interaktywność, dynamiczna walidacja formularzy).
@@ -148,8 +155,9 @@ graph TD
     D_Config --> F_DB["database.php (Połączenie PDO / MariaDB Socket & TCP)"]
     
     Root --> D_Database["database/"]
-    D_Database --> F_Schema["schema.sql (Struktura DDL, klucze obce, indeksy)"]
-    D_Database --> F_Seed["seed.sql (Zasilenie polskimi filmami DML)"]
+    D_Database --> F_Schema["schema.sql (Struktura DDL, CREATE TABLE IF NOT EXISTS)"]
+    D_Database --> F_Seed["seed.sql (Idempotentne zasilenie polskimi filmami DML)"]
+    D_Database --> F_Reset["reset.sql (Opcjonalny reset deweloperski - DROP TABLE)"]
     
     Root --> D_Includes["includes/"]
     D_Includes --> F_Header["header.php (Wspólny nagłówek HTML5 z nawigacją)"]
@@ -207,8 +215,9 @@ cinehub/
 ├── config/
 │   └── database.php                # Konfiguracja połączenia PDO (localhost / socket unix / TCP)
 ├── database/
-│   ├── schema.sql                  # Struktura tabel, kluczy obcych i indeksów (DDL)
-│   └── seed.sql                    # Zasilenie bazy 8 polskimi filmami, obsadą i recenzjami (DML)
+│   ├── schema.sql                  # Bezpieczna struktura tabel, kluczy i indeksów (CREATE TABLE IF NOT EXISTS)
+│   ├── seed.sql                    # Idempotentne zasilenie danymi polskiego kina (DML bez TRUNCATE)
+│   └── reset.sql                   # Opcjonalny, destrukcyjny skrypt resetu deweloperskiego (DROP TABLE)
 ├── frontend/
 │   ├── css/
 │   │   └── style.css               # Kinowy motyw Dark Mode (CSS Grid, Flexbox, RWD)

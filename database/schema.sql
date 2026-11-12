@@ -1,8 +1,18 @@
 -- =======================================================
 -- Baza Danych: cinehub_db (Kwalifikacja INF.03)
 -- Projekt: CineHub - Baza Filmów
--- Autor: Backend Developer & Data Analyst
+-- Rola: Administrator Bazy Danych (DBA) & Backend Developer
 -- Silnik: InnoDB | Kodowanie: utf8mb4_unicode_ci
+-- Minimalna wymagana wersja serwera:
+--   - MySQL 8.0.16+ (pełne egzekwowanie ograniczeń CHECK)
+--   - MariaDB 10.3+ (wsparcie CHECK i nowoczesne indeksy InnoDB)
+--
+-- BEZPIECZEŃSTWO DANYCH:
+--   Skrypt ten służy do bezpiecznej instalacji świeżej bazy danych.
+--   Używa wyłącznie klauzul CREATE TABLE IF NOT EXISTS.
+--   NIE ZAWIERA instrukcji DROP TABLE ani TRUNCATE, dzięki czemu
+--   ponowne uruchomienie nie usuwa ani nie modyfikuje istniejących danych.
+--   UWAGA: Nie stanowi narzędzia migracji modyfikującego istniejące tabele.
 -- =======================================================
 
 CREATE DATABASE IF NOT EXISTS `cinehub_db`
@@ -12,21 +22,9 @@ COLLATE utf8mb4_unicode_ci;
 USE `cinehub_db`;
 
 -- -------------------------------------------------------
--- Wyłączenie sprawdzania kluczy obcych na czas tworzenia
--- -------------------------------------------------------
-SET FOREIGN_KEY_CHECKS = 0;
-
-DROP TABLE IF EXISTS `recenzje`;
-DROP TABLE IF EXISTS `obsada`;
-DROP TABLE IF EXISTS `aktorzy`;
-DROP TABLE IF EXISTS `filmy`;
-
-SET FOREIGN_KEY_CHECKS = 1;
-
--- -------------------------------------------------------
 -- 1. Tabela: filmy
 -- -------------------------------------------------------
-CREATE TABLE `filmy` (
+CREATE TABLE IF NOT EXISTS `filmy` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `tytul` VARCHAR(255) NOT NULL,
     `rezyser` VARCHAR(150) NOT NULL,
@@ -43,7 +41,7 @@ CREATE TABLE `filmy` (
 -- -------------------------------------------------------
 -- 2. Tabela: aktorzy
 -- -------------------------------------------------------
-CREATE TABLE `aktorzy` (
+CREATE TABLE IF NOT EXISTS `aktorzy` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `imie` VARCHAR(100) NOT NULL,
     `nazwisko` VARCHAR(100) NOT NULL,
@@ -57,7 +55,7 @@ CREATE TABLE `aktorzy` (
 -- -------------------------------------------------------
 -- 3. Tabela: obsada (Relacja wiele-do-wielu filmy <-> aktorzy)
 -- -------------------------------------------------------
-CREATE TABLE `obsada` (
+CREATE TABLE IF NOT EXISTS `obsada` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `film_id` INT NOT NULL,
     `aktor_id` INT NOT NULL,
@@ -75,9 +73,9 @@ CREATE TABLE `obsada` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------
--- 4. Tabela: recenzje
+-- 4. Tabela: recenzje (Ograniczenie CHECK 1-10)
 -- -------------------------------------------------------
-CREATE TABLE `recenzje` (
+CREATE TABLE IF NOT EXISTS `recenzje` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `film_id` INT NOT NULL,
     `autor` VARCHAR(100) NOT NULL,
@@ -90,4 +88,3 @@ CREATE TABLE `recenzje` (
     INDEX `idx_recenzje_film` (`film_id`),
     INDEX `idx_recenzje_ocena` (`ocena`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-

@@ -181,8 +181,9 @@ cinehub/
 ├── config/
 │   └── database.php             # Konfiguracja połączenia PDO (localhost / socket / TCP)
 ├── database/
-│   ├── schema.sql               # Struktura tabel, kluczy obcych i indeksów (DDL)
-│   └── seed.sql                 # Zasilenie bazy 8 polskimi filmami, obsadą i recenzjami (DML)
+│   ├── schema.sql               # Bezpieczna struktura tabel DDL (CREATE TABLE IF NOT EXISTS)
+│   ├── seed.sql                 # Idempotentne zasilenie danymi polskiego kina (DML bez TRUNCATE)
+│   └── reset.sql                # Opcjonalny, destrukcyjny skrypt resetu deweloperskiego (DROP TABLE)
 ├── frontend/
 │   ├── css/
 │   │   └── style.css            # Kinowy motyw Dark Mode (CSS Grid, Flexbox, RWD)
@@ -193,7 +194,7 @@ cinehub/
 │   ├── header.php               # Wspólny nagłówek HTML5 z nawigacją i alertami Flash
 │   └── footer.php               # Wspólna stopka strony HTML5 ze skryptem JS
 ├── tests/
-│   └── qa_test.php              # Zautomatyzowany pakiet 21 testów integracyjnych
+│   └── qa_test.php              # Zautomatyzowany pakiet 21 testów integracyjnych (DDL, DML, CHECK)
 ├── index.php                    # Strona główna: katalog filmów, filtry, wyszukiwarka
 ├── film.php                     # Szczegóły filmu, obsada, recenzje i formularz opinii
 ├── actors.php                   # Katalog aktorów z wyszukiwarką
@@ -211,7 +212,8 @@ cinehub/
 
 ### Wymagania Środowiskowe:
 - PHP w wersji 8.0 lub nowszej (z rozszerzeniami `pdo` oraz `pdo_mysql` lub `pdo_sqlite`).
-- Serwer bazodanowy MySQL 5.7+ / 8.0+ lub MariaDB 10.3+.
+- Serwer bazodanowy: **MySQL 8.0.16+** lub **MariaDB 10.3+**.  
+  > ⚠️ **Ważna uwaga o wersji MySQL:** Schemat bazy danych CineHub wymaga pełnego egzekwowania ograniczeń integralności `CHECK (ocena BETWEEN 1 AND 10)`. Wersje MySQL starsze niż 8.0.16 (w tym MySQL 5.7) ignorują ograniczenia `CHECK`, akceptując błędne dane na poziomie silnika SQL. Wersje MariaDB egzekwują `CHECK` począwszy od wydania 10.2.1+.
 - Przeglądarka internetowa obsługująca nowoczesny standard CSS Grid i ES6.
 
 ### Krok 1: Klonowanie Repozytorium
@@ -220,24 +222,39 @@ git clone https://github.com/twoj-login/cinehub.git
 cd cinehub
 ```
 
-### Krok 2: Przygotowanie Bazy Danych
-Zaloguj się do serwera MySQL i zaimportuj strukturę oraz dane początkowe:
+### Krok 2: Bezpieczne Przygotowanie Bazy Danych
+Zaloguj się do serwera MySQL / MariaDB i zaimportuj strukturę oraz dane początkowe:
 ```bash
-# Utworzenie bazy i tabel
+# Utworzenie bazy i tabel (skrypt bezpieczny – CREATE TABLE IF NOT EXISTS; nie usuwa istniejących tabel ani danych)
 mysql -u root -p < database/schema.sql
 
-# Zasilenie bazy polskimi filmami i obsadą
+# Zasilenie bazy polskimi filmami i obsadą (skrypt w pełni idempotentny – nie czyści tabel i nie tworzy duplikatów)
 mysql -u root -p < database/seed.sql
 ```
 
+> ⚠️ **Opcjonalny reset deweloperski (UWAGA - kasuje dane):**  
+> Jeśli celowo chcesz wyczyścić bazę i usunąć wszystkie tabele w celach deweloperskich, skorzystaj z oddzielnego skryptu `database/reset.sql`:  
+> `mysql -u root -p cinehub_db < database/reset.sql`  
+> Skrypt ten zawiera instrukcje `DROP TABLE` i **nie może być stosowany** podczas normalnego przygotowania ani aktualizacji projektu.
+
 ### Krok 3: Konfiguracja Połączenia
-Domyślne parametry w `config/database.php` odpowiadają typowej instalacji lokalnej (`127.0.0.1`, baza `cinehub_db`, użytkownik `root`, bez hasła).  
-Możesz je dostosować bezpośrednio w pliku lub przekazać jako zmienne środowiskowe:
+Domyślne parametry w `config/database.php` są skonfigurowane pod standardowe środowisko szkolne:
+- **Host:** `localhost` (w systemie Linux automatycznie wykorzystuje szybkie gniazdo uniksowe `/var/lib/mysql/mysql.sock`; w systemie Windows lub Dockerze kieruje na port 3306).
+- **Użytkownik:** `root`
+- **Hasło:** `root` (w środowiskach takich jak XAMPP domyślnie puste – w takim przypadku ustaw `export DB_PASS=""` lub zmień w pliku).
+- **Baza danych:** `cinehub_db`
+
+Możesz je dostosować przekazując zmienne środowiskowe:
 ```bash
 export DB_HOST="localhost"
 export DB_NAME="cinehub_db"
-export DB_USER="twoj_uzytkownik"
-export DB_PASS="twoje_haslo"
+export DB_USER="root"
+export DB_PASS="root"     # lub DB_PASS="" dla XAMPP
+```
+Dla połączeń wymuszających TCP (np. kontener Docker):
+```bash
+export DB_HOST="127.0.0.1"
+export DB_PORT="3306"
 ```
 
 ### Krok 4: Uruchomienie Aplikacji
@@ -252,12 +269,26 @@ Otwórz przeglądarkę internetową i przejdź pod adres:
 
 ## 🧪 Zautomatyzowane Testy Jakości (QA)
 
-Projekt posiada wbudowany, niezależny pakiet testów integracyjnych [`tests/qa_test.php`](tests/qa_test.php), który testuje pełny cykl życia aplikacji (tworzenie schematu, zasilenie danymi z `seed.sql`, zapytania analityczne, relacje M:N, zapis recenzji, ochronę przed SQL Injection i XSS).
+Projekt posiada wbudowany, niezależny pakiet testów integracyjnych [`tests/qa_test.php`](tests/qa_test.php).
 
-Aby uruchomić testy, wykonaj w terminalu:
+### Zakres i Ograniczenia Testów:
+- **Co jest testowane:**
+  - Weryfikacja rzeczywistego pliku DDL [`database/schema.sql`](database/schema.sql) (klucze obce, kaskady `ON DELETE CASCADE`, ograniczenia `CHECK`, brak instrukcji destrukcyjnych).
+  - Weryfikacja idempotencji DDL (ponowne nałożenie schematu nie kasuje danych użytkownika).
+  - Weryfikacja rzeczywistego pliku DML [`database/seed.sql`](database/seed.sql) (brak `TRUNCATE`, brak duplikacji rekordów przy powtórnym uruchomieniu).
+  - Dynamiczne wiązanie relacji M:N (obsada) i 1:N (recenzje) bez polegania na stałych identyfikatorach.
+  - Egzekwowanie ograniczeń `CHECK` w silniku SQLite oraz na izolowanej, tymczasowej bazie MariaDB (o ile lokalny serwer jest dostępny).
+  - Ochrona przed atakami XSS (funkcja pomocnicza `e()`).
+- **Czego pakiet NIE testuje automatycznie (wymagana weryfikacja ręczna):**
+  - Pakiet testowy **nie wykonuje żądań HTTP** ani nie symuluje pełnego stosu przeglądarkowego.
+  - Przepływy interfejsu (obsługa formularzy POST w przeglądarce, wzorzec PRG, komunikaty sesyjne Flash, estetyka Dark Mode i responsywność RWD) należy zweryfikować ręcznie w przeglądarce pod adresem `http://localhost:8000`.
+
+### Uruchomienie Testów:
 ```bash
 php tests/qa_test.php
 ```
+
+Pakiet zwraca kod zakończenia `0` w przypadku zaliczenia wszystkich asercji lub kod `1` w razie wykrycia jakichkolwiek błędów. Testy tworzą wyłącznie tymczasowe zasoby (plik `test_cinehub_tmp.sqlite` oraz ewentualną tymczasową bazę MariaDB), które są natychmiast usuwane po zakończeniu.
 
 Oczekiwany rezultat wykonania:
 ```text

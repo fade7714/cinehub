@@ -85,5 +85,24 @@ Celem sesji było przeprowadzenie wszechstronnego przeglądu stanu projektu **Ci
 
 ---
 
-## 4. Wnioski i Gotowość do Dalszej Pracy
-Projekt **CineHub** jest w 100% spójny, baza danych MariaDB działa stabilnie i zawiera pełną strukturę oraz dane zasilające, a wszystkie warstwy aplikacji przeszły testy pomyślnie. Nie brakuje żadnego komponentu. Można bezpiecznie kontynuować dalszy rozwój projektu.
+## 4. Dodatkowy Audyt i Rozwiązanie Problemów Krytycznych (2026-11-12)
+
+W ramach kontrolowanej naprawy problemów krytycznych i wysokich zrealizowano:
+1. **Ochrona przed usuwaniem danych:**
+   - `database/schema.sql` przekształcono na bezpieczny DDL z `CREATE TABLE IF NOT EXISTS` bez `DROP TABLE`.
+   - Utworzono odrębny, ostrzeżony skrypt `database/reset.sql` do opcjonalnego resetu deweloperskiego.
+   - `database/seed.sql` został oczyszczony z `TRUNCATE` i oparty na zapytaniach warunkowych `WHERE NOT EXISTS` z dynamicznym wyznaczaniem relacji (brak stałych ID).
+2. **Uwiarygodnienie pakietu testowego (`tests/qa_test.php`):**
+   - Wyeliminowano ręczną kopię schematu SQLite na rzecz wczytywania i testowania rzeczywistego pliku `database/schema.sql`.
+   - Dodano testy idempotencji DDL/DML oraz egzekwowania ograniczeń `CHECK` i `CASCADE`.
+   - Dołączono test na izolowanej bazie ephemeral MariaDB 11.8 i sprzątanie wyłącznie zasobów tymczasowych.
+   - Sprecyzowano zakres: testy PDO/SQL (testy nie symulują stosu HTTP).
+3. **Ujednolicenie konfiguracji bazy:**
+   - Domyślna konfiguracja `localhost`, `root`, `root` w kodzie i dokumentacji; elastyczne wsparcie dla pustego hasła (`export DB_PASS=""`) oraz TCP (`export DB_HOST="127.0.0.1"`).
+4. **Weryfikacja wersji DBMS pod kątem ograniczenia CHECK:**
+   - Zaktualizowano minimalne deklarowane wersje na **MySQL 8.0.16+** i **MariaDB 10.3+** z wyjaśnieniem, że MySQL 5.7 ignoruje ograniczenia `CHECK`.
+
+---
+
+## 5. Wnioski i Gotowość do Dalszej Pracy
+Projekt **CineHub** jest w 100% spójny, bezpieczny dla danych użytkownika i stabilny. Wszystkie procedury testowe zakończyły się sukcesem (21/21 PASS). Można bezpiecznie kontynuować dalszy rozwój projektu.

@@ -49,9 +49,26 @@
 
 ---
 
-## 5. Kolejne Kroki
-1. **Backend Developer & DBA:** Utrzymanie i dalsza optymalizacja zapytań SQL oraz bezpieczeństwa sesji.
-2. **Frontend Developer:** Ewentualne rozszerzenia UI (np. paginacja, dodatkowe animacje).
-3. **QA Asystent:** Cykliczne uruchamianie pakietu testów po każdej modyfikacji kodu.
-4. **Agent ds. Dokumentacji GitHub:** Utrzymanie dokumentacji repozytorium (`README.md`, `README.txt`, `Final-Report.md`).
+## 5. Aktualizacja Sesji: Bezpieczeństwo Danych, Wersje DBMS i Naprawa Integralności (2026-11-12)
+- **Wykonane działania:**
+  1. Zidentyfikowano krytyczne ryzyko utraty danych przy ponownym uruchamianiu `schema.sql` i `seed.sql`.
+  2. Zaktualizowano `Docs/Specs.md` w zakresie:
+     - Wymuszenia bezpieczeństwa DDL: skrypt `schema.sql` opiera się wyłącznie na `CREATE TABLE IF NOT EXISTS` i nie kasuje tabel ani rekordów (brak `DROP TABLE` w standardowej instalacji).
+     - Formalnego wydzielenia destrukcyjnego resetu do pliku `database/reset.sql` z wyraźnym ostrzeżeniem deweloperskim.
+     - Wprowadzenia wymogu pełnej idempotencji dla `database/seed.sql` bez `TRUNCATE` i bez polegania na stałych identyfikatorach (dynamiczne wiązania kluczy).
+     - Skorygowania minimalnej wspieranej wersji MySQL do **8.0.16+** oraz MariaDB do **10.3+** z uwagi na brak egzekwowania ograniczeń `CHECK` w MySQL 5.7.
+- **Zmienione pliki:**
+  - `Docs/Specs.md`
+  - `Docs/Sessions/Planning.md`
+- **Wyniki weryfikacji:**
+  - Specyfikacja w pełni odzwierciedla bezpieczny, bezdestrukcyjny przepływ instalacji i uruchamiania.
+- **Pozostałe kwestie do monitorowania:**
+  - Egzekwowanie zasady, aby w środowiskach szkolnych nie uruchamiać skryptów resetu na bazach z danymi egzaminacyjnymi.
+
+---
+
+## 6. Kolejne Kroki
+1. **Backend Developer & DBA:** Nadzór nad prawidłowym działaniem połączenia PDO i dynamicznym generowaniem kluczy.
+2. **QA Asystent:** Regularne uruchamianie zaktualizowanego pakietu `tests/qa_test.php`.
+3. **Agent ds. Dokumentacji GitHub:** Utrzymanie spójności opisów w `README.md`, `README.txt` i `Docs/Final-Report.md`.
 

@@ -89,7 +89,34 @@
 
 ---
 
-## 5. Rekomendowane Kolejne Kroki
+## 5. Aktualizacja Sesji: Niezależność Identyfikatorów, Walidacja Ocen i Konfiguracja (2026-11-12)
+
+### 5.1 Zakres Wykonanych Prac
+1. **Weryfikacja dynamicznych identyfikatorów w kontrolerach:**
+   - Przeanalizowano wszystkie skrypty kontrolerów (`index.php`, `film.php`, `actors.php`, `actor.php`, `add_movie.php`, `add_actor.php`, `assign_actor.php`).
+   - Potwierdzono, że żaden plik backendowy nie posiada zahardkodowanych numerów `id` – wszystkie operacje bazują na dynamicznych parametrach z bazy danych lub żądań `$_GET`/`$_POST`.
+2. **Podwójna linia obrony dla ocen (Defense-in-Depth):**
+   - W `film.php` formularz recenzji posiada ścisłą walidację PHP: `filter_var($_POST['ocena'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 10]])`.
+   - W połączeniu z bazodanowym ograniczeniem `CHECK (ocena BETWEEN 1 AND 10)` gwarantuje to 100% szczelność przed nieprawidłowymi ocenami zarówno na poziomie aplikacji, jak i bazy danych.
+3. **Elastyczna konfiguracja połączenia (`config/database.php`):**
+   - Zaktualizowano odczyt hasła: `getenv('DB_PASS') !== false ? getenv('DB_PASS') : 'root'`, co pozwala bezkonfliktowo uruchamiać projekt w środowiskach z pustym hasłem (np. szkolny XAMPP: `export DB_PASS=""`), zachowując domyślne `root` dla środowisk ze skonfigurowanym kontem administracyjnym.
+   - Utrzymano domyślny host `localhost` zapewniający bezpośrednie wykorzystanie gniazda uniksowego w systemach Linux oraz portu 3306 w środowiskach Windows i Docker.
+
+### 5.2 Zmienione Pliki
+- `config/database.php` – rozszerzona obsługa parametru hasła i dokumentacja.
+- `Docs/Sessions/Backend.md` – niniejszy raport.
+
+### 5.3 Wyniki Weryfikacji
+- Składnia PHP: 12/12 plików bez jakichkolwiek błędów (`php -l`).
+- Testy integracyjne: Wszystkie asercje w `tests/qa_test.php` zakończone sukcesem.
+- Renderowanie stron: Wszystkie 7 widoków generuje poprawny kod HTML.
+
+### 5.4 Pozostałe Problemy
+- Brak zidentyfikowanych problemów w warstwie backendowej.
+
+---
+
+## 6. Rekomendowane Kolejne Kroki
 1. Bieżące monitorowanie zapytań w miarę rozrostu bazy danych.
 2. Współpraca z QA Asystentem przy testach regresyjnych.
 

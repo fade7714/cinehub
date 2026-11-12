@@ -77,7 +77,25 @@
 
 ---
 
-## 5. Rekomendowane Kolejne Kroki
+## 5. Aktualizacja Sesji: Weryfikacja Formularzy i Braku Regresji Wizualnej (2026-11-12)
+
+### 5.1 Zakres Wykonanych Prac
+1. **Weryfikacja spójności komponentu oceny:**
+   - Potwierdzono, że selektor 10 gwiazdek w `film.php` oraz `frontend/js/main.js` przekazuje do serwera wartości liczbowe od 1 do 10, ściśle odpowiadające ograniczeniu `CHECK (ocena BETWEEN 1 AND 10)` nałożonemu w `database/schema.sql`.
+2. **Weryfikacja renderowania dynamicznych powiązań:**
+   - Karty obsady w `film.php` oraz filmografia w `actor.php` generują poprawne adresy URL oparte na dynamicznych parametrach `?id=...`, bez jakichkolwiek problemów wynikających z usunięcia stałych ID w seedzie.
+3. **Audyt stabilności widoków:**
+   - Wszystkie 7 widoków (`index.php`, `film.php`, `actors.php`, `actor.php`, `add_movie.php`, `add_actor.php`, `assign_actor.php`) renderują spójny layout HTML5 ze stylami Dark Mode bez anomalii przesunięcia układu (CLS).
+
+### 5.2 Zmienione Pliki
+- `Docs/Sessions/Frontend.md` – niniejszy raport.
+
+### 5.3 Wyniki Weryfikacji
+- Formularze i widoki w 100% sprawne, zachowano spójność z nową architekturą bazy danych.
+
+---
+
+## 6. Rekomendowane Kolejne Kroki
 1. Utrzymanie spójności stylów przy ewentualnym dodawaniu nowych podstron.
 2. Współpraca z QA Asystentem przy weryfikacji dostępności (a11y).
 

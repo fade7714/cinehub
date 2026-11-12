@@ -9,12 +9,16 @@
 declare(strict_types=1);
 
 // Parametry konfiguracyjne bazy danych
+// Domyślna konfiguracja szkolna: host 'localhost', użytkownik 'root', hasło 'root', baza 'cinehub_db'
+// Dla środowisk typu XAMPP z pustym hasłem należy ustawić zmienną środowiskową DB_PASS="" lub zmienić wartość poniżej.
+// Na systemie Linux 'localhost' łączy się bezpośrednio przez gniazdo Unix (/var/lib/mysql/mysql.sock);
+// w przypadku wymuszenia TCP należy ustawić DB_HOST="127.0.0.1".
 define('DB_DRIVER', getenv('DB_DRIVER') ?: 'mysql');
 define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
 define('DB_PORT', getenv('DB_PORT') ?: '3306');
 define('DB_NAME', getenv('DB_NAME') ?: 'cinehub_db');
 define('DB_USER', getenv('DB_USER') ?: 'root');
-define('DB_PASS', getenv('DB_PASS') ?: 'root');
+define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : 'root');
 define('DB_CHARSET', 'utf8mb4');
 
 /**

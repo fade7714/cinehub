@@ -130,8 +130,9 @@ cinehub/
 ├── config/
 │   └── database.php             # Konfiguracja PDO (localhost / socket, MySQL + fallback SQLite)
 ├── database/
-│   ├── schema.sql               # DDL bazy danych (tabele: filmy, aktorzy, obsada, recenzje)
-│   └── seed.sql                 # DML zasilający bazę 8 polskimi filmami, obsadą i recenzjami
+│   ├── schema.sql               # Bezpieczna struktura DDL (CREATE TABLE IF NOT EXISTS)
+│   ├── seed.sql                 # Idempotentny DML zasilający bazę 8 polskimi filmami, obsadą i recenzjami (bez TRUNCATE)
+│   └── reset.sql                # Opcjonalny, destrukcyjny skrypt resetu deweloperskiego (DROP TABLE)
 ├── frontend/
 │   ├── css/
 │   │   └── style.css            # Główny arkusz stylów kinowych Dark Mode (RWD)
@@ -142,7 +143,7 @@ cinehub/
 │   ├── header.php               # Wspólny nagłówek HTML5 z nawigacją i alertami Flash
 │   └── footer.php               # Wspólna stopka HTML5 ze skryptami
 ├── tests/
-│   └── qa_test.php              # Zautomatyzowany pakiet 21 testów integracyjnych
+│   └── qa_test.php              # Zautomatyzowany pakiet 21 testów integracyjnych (DDL, DML, CHECK, relacje)
 ├── index.php                    # Strona główna: katalog filmów, filtry gatunków, wyszukiwarka, sortowanie
 ├── film.php                     # Widok pojedynczego filmu: opis, obsada, recenzje i formularz opinii
 ├── actors.php                   # Katalog aktorów: wyszukiwarka, zdjęcia, biografie, liczba ról
@@ -160,17 +161,9 @@ cinehub/
 
 Aplikacja **CineHub** w pełni spełnia kryteria stawiane aplikacjom internetowym i bazodanowym w ramach egzaminu zawodowego **INF.03**:
 - Prawidłowo zaprojektowana relacyjna baza danych w trzeciej postaci normalnej (3NF) z kluczami obcymi i indeksami.
+- Pełne bezpieczeństwo instalacji i idempotentność danych: `schema.sql` nie niszczy istniejących tabel, `seed.sql` nie duplikuje wierszy i nie zawiera `TRUNCATE`, a opcjonalny reset wydzielono do `reset.sql`.
+- Precyzyjnie określone wymagania serwera DBMS: **MySQL 8.0.16+** lub **MariaDB 10.3+** zapewniające rzeczywiste egzekwowanie ograniczeń `CHECK`.
 - Czysty, modularny kod PHP 8 bez zależności frameworkowych, łatwy do wdrożenia na dowolnym serwerze LAMP/WAMP/XAMPP.
 - Nowoczesny, w 100% autorski interfejs użytkownika zrealizowany bez zewnętrznych bibliotek CSS/JS.
-- Kompletna dokumentacja projektowa i raporty z każdej fazy wytwórczej.
-
----
-
-## 5. Podsumowanie Wdrożeniowe i Zgodność ze Standardem INF.03
-
-Aplikacja **CineHub** w pełni spełnia kryteria stawiane aplikacjom internetowym i bazodanowym w ramach egzaminu zawodowego **INF.03**:
-- Prawidłowo zaprojektowana relacyjna baza danych w trzeciej postaci normalnej (3NF) z kluczami obcymi i indeksami.
-- Czysty, modularny kod PHP 8 bez zależności frameworkowych, łatwy do wdrożenia na dowolnym serwerze LAMP/WAMP/XAMPP.
-- Nowoczesny, w 100% autorski interfejs użytkownika zrealizowany bez zewnętrznych bibliotek CSS/JS.
-- Kompletna dokumentacja projektowa i raporty z każdej fazy wytwórczej.
+- Rzetelny pakiet testowy `tests/qa_test.php` weryfikujący rzeczywisty schemat repozytorium z rozróżnieniem silników SQLite i MariaDB oraz czytelnym wskazaniem zakresu weryfikacji ręcznej (HTTP/UI).
 

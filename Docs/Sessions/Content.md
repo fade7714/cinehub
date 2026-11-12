@@ -44,7 +44,7 @@ Głównym zadaniem Content Agenta było przygotowanie bogatego, realistycznego i
 ---
 
 ## 3. Zastosowane Rozwiązania i Weryfikacja
-- **Zgodność z MySQL i SQLite:** Zapytania w `database/seed.sql` sformatowano tak, aby były w 100% kompatybilne z MySQL/MariaDB (zawierają dyrektywy wyłączania i włączania `FOREIGN_KEY_CHECKS` oraz czyszczenie `TRUNCATE`), a jednocześnie mogły być parsowane przez testy automatyczne.
+- **Zgodność z MySQL i SQLite:** Zapytania w `database/seed.sql` sformatowano jako bezpieczne, idempotentne instrukcje `INSERT INTO ... SELECT ... WHERE NOT EXISTS`, pozbawione destrukcyjnych klauzul `TRUNCATE` i `DROP`, co gwarantuje nienaruszalność danych przy ponownym uruchomieniu.
 - **Weryfikacja integralności:** Wszystkie identyfikatory kluczy obcych (`film_id`, `aktor_id`) w tabelach `obsada` i `recenzje` ściśle odpowiadają rekordom z tabel nadrzędnych.
 - **Bezpieczeństwo znaków:** Wszystkie apostrofy i cudzysłowy w tytułach ról i cytatach zostały prawidłowo zabezpieczone i przetestowane.
 
@@ -54,10 +54,10 @@ Głównym zadaniem Content Agenta było przygotowanie bogatego, realistycznego i
 
 ### 4.1 Zakres Wykonanych Prac
 1. **Wyeliminowanie ryzyka utraty danych (usunięcie TRUNCATE):**
-   - Ze skryptu `database/seed.sql` bezwzględnie usunięto instrukcje `TRUNCATE TABLE`, które dotychczas czyściły całą bazę przy każdym ponownym uruchomieniu seeda.
+   - Ze skryptu `database/seed.sql` bezwzględnie usunięto instrukcje `TRUNCATE TABLE`, które w pierwotnej wersji czyściły bazę przy każdym uruchomieniu seeda.
 2. **Idempotencja i ochrona przed duplikacją (`WHERE NOT EXISTS`):**
    - Wszystkie instrukcje `INSERT INTO` dla filmów, aktorów, obsady i recenzji zostały przekształcone w zapytania warunkowe `INSERT INTO ... SELECT ... WHERE NOT EXISTS (...)`.
-   - Dzięki temu wielokrotne uruchomienie `seed.sql` jest w 100% bezpieczne – nie tworzy duplikatów i nie modyfikuje rekordów dodanych przez użytkownika.
+   - Dzięki temu wielokrotne uruchomienie `seed.sql` jest bezpieczne dla danych użytkownika – nie tworzy duplikatów i nie modyfikuje rekordów dodanych przez użytkownika.
 3. **Usunięcie stałych identyfikatorów (`id`) i dynamiczne wiązania kluczy:**
    - Wyeliminowano sztywne wpisywanie kluczy głównych `(1, 2, ...)`.
    - Powiązania w tabelach asocjacyjnych `obsada` i `recenzje` są teraz pobierane dynamicznie na podstawie unikalnych kluczy biznesowych (tytuł filmu + reżyser oraz imię + nazwisko aktora).

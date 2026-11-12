@@ -2,7 +2,7 @@
 **Data sesji:** 2026-11-12  
 **Rola wykonująca:** Administrator Bazy Danych (DBA)  
 **Nadzór:** Główny Agent (Orchestrator)  
-**Status integracji:** Pełna zgodność i stabilność – Baza danych zintegrowana w 100% z aplikacją  
+**Status integracji:** Zgodność schematu i stabilność połączenia potwierdzona w środowisku deweloperskim  
 
 ---
 
@@ -123,5 +123,5 @@ Wszystkie tabele korzystają z silnika transakcyjnego **InnoDB** z kodowaniem **
 
 ## 6. Podsumowanie Wdrożeniowe
 - **Połączenie z bazą:** Aktywne, stabilne, domyślna konfiguracja szkolna spójna z `README.md`.
-- **Stan schematu:** W 100% bezpieczny dla danych użytkownika (brak DROP TABLE przy instalacji).
+- **Stan schematu:** Bezpieczny dla danych użytkownika (brak DROP TABLE w instalacji, CREATE TABLE IF NOT EXISTS).
 - **Kolejne kroki:** Okresowy audyt spójności indeksów i relacji przy rozszerzaniu bazy o nowe tabele.

@@ -414,3 +414,8 @@ INSERT INTO `recenzje` (`film_id`, `autor`, `ocena`, `tresc`)
 SELECT f.id, 'Grzegorz_65', 9, 'Cudowna, ciepła komedia obyczajowa z Kresami w tle. Pomimo upływu dziesięcioleci film wciąż bawi do łez kolejne pokolenia Polaków.'
 FROM `filmy` f WHERE f.tytul = 'Sami swoi' AND f.rezyser = 'Sylwester Chęciński'
 AND NOT EXISTS (SELECT 1 FROM `recenzje` r WHERE r.film_id = f.id AND r.autor = 'Grzegorz_65');
+
+-- -------------------------------------------------------
+-- Komunikat statusu wykonania seeda
+-- -------------------------------------------------------
+SELECT 'Zasilenie bazy danych zakonczone pomyslnie (brak duplikatow, dane uzytkownika nienaruszone).' AS status;

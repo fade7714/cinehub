@@ -344,6 +344,16 @@ echo "Błędy:     " . $failed . PHP_EOL;
 echo "Status:    " . ($failed === 0 ? "SUKCES (Wszystkie asercje zaliczone)" : "BŁĄD (Wykryto niezgodności)") . PHP_EOL;
 echo "=====================================================================" . PHP_EOL;
 
+echo PHP_EOL . "---------------------------------------------------------------------" . PHP_EOL;
+echo "  RĘCZNA CHECKLISTA DLA PRZEPŁYWÓW HTTP / UI (WYMÓG INF.03):" . PHP_EOL;
+echo "  1. Uruchom serwer WWW: php -S localhost:8000" . PHP_EOL;
+echo "  2. Otwórz http://localhost:8000 i sprawdź katalog, filtry oraz sortowanie." . PHP_EOL;
+echo "  3. Wejdź w szczegóły filmu (np. film.php?id=1) i zweryfikuj obsadę oraz recenzje." . PHP_EOL;
+echo "  4. Wypełnij formularz recenzji (ocena 1-10) i sprawdź redirect PRG oraz Flash alert." . PHP_EOL;
+echo "  5. Wejdź w profil aktora (actor.php?id=1) i sprawdź filmografię." . PHP_EOL;
+echo "  6. Przetestuj formularze add_movie.php, add_actor.php i assign_actor.php." . PHP_EOL;
+echo "---------------------------------------------------------------------" . PHP_EOL;
+
 if ($failed > 0) {
     exit(1);
 }

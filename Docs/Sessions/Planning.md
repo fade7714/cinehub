@@ -40,15 +40,18 @@
 
 ---
 
-## 4. Kolejne Kroki
-1. **Backend Developer:**
-   - Utworzenie skryptów DDL i DML: `database/schema.sql` oraz `database/seed.sql`.
-   - Zaimplementowanie klasy/pliku połączenia PDO (`config/database.php`).
-   - Implementacja logiki pobierania i zapisywania filmów, aktorów, obsady i recenzji.
-2. **Frontend Developer:**
-   - Stworzenie struktury widoków i komponentów (`header.php`, `footer.php`, formularze, karty filmowe).
-   - Opracowanie stylizacji CSS (nowoczesny motyw kinowy Dark Mode).
-   - Opracowanie skryptów walidacji i dynamicznego systemu oceniania w JavaScript.
-3. **QA Asystent:**
-   - Weryfikacja zgodności implementacji z `Docs/Specs.md`.
+## 4. Aktualizacja Sesji Planowania: Nowa Rola DBA i Integracja Architektury (2026-11-12)
+- **Rozszerzenie zespołu:** Formalne zdefiniowanie roli **Administratora Bazy Danych (DBA)** w `workflow.md` i `Specs.md`. Rola ta odpowiada za techniczną i logiczną integrację bazy danych z projektem (połączenie PDO, socket vs TCP, indeksy, DDL, integralność kaskad), przy zachowaniu wyraźnego rozgraniczenia od Content Agenta.
+- **Aktualizacja specyfikacji (`Docs/Specs.md`):** Zsynchronizowano specyfikację techniczną z obecną architekturą, dodając specyfikację łączności bazy przez gniazdo uniksowe oraz opis obowiązków DBA.
+- **Korekta diagramów i struktury katalogów w `Docs/Specs.md`:** Zastąpiono przestarzałą strukturę katalogów (`assets/`) rzeczywistą strukturą (`frontend/css/`, `frontend/js/`, `tests/`, kompletną listą sesji w `Docs/Sessions/`), dodano dedykowany diagram Mermaid struktury katalogów i komponentów (`graph TD`), zaktualizowano diagram przepływu architektury systemu (`flowchart TD`) oraz dodano diagram orkiestracji 7 agentów.
+- **Polityka raportowania sesji:** Wprowadzono jednoznaczną regułę aktualizacji istniejących plików sesji (`Planning.md`, `Backend.md`, `Frontend.md`, `Content.md`, `QA.md`, `Database-integrity.md`, `Github-Doc.md`).
+- **Status planu:** Plan został w pełni zrealizowany i zaktualizowany; projekt jest gotowy do kolejnych etapów rozwojowych.
+
+---
+
+## 5. Kolejne Kroki
+1. **Backend Developer & DBA:** Utrzymanie i dalsza optymalizacja zapytań SQL oraz bezpieczeństwa sesji.
+2. **Frontend Developer:** Ewentualne rozszerzenia UI (np. paginacja, dodatkowe animacje).
+3. **QA Asystent:** Cykliczne uruchamianie pakietu testów po każdej modyfikacji kodu.
+4. **Agent ds. Dokumentacji GitHub:** Utrzymanie dokumentacji repozytorium (`README.md`, `README.txt`, `Final-Report.md`).
 

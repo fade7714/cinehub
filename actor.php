@@ -10,7 +10,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/functions.php';
 
-$aktorId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+$aktorId = filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT) ?: null;
 $dbError = null;
 $aktor = null;
 $filmografia = [];

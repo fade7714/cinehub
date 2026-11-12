@@ -77,11 +77,19 @@
 
 ---
 
-## 4. Rekomendowane Kolejne Kroki
-1. **Frontend Developer:**
-   - Rozbudowa interakcji w warstwie klienta (np. dynamiczny komponent wyboru gwiazdek dla ocen w `film.php`, walidacja JavaScript w czasie rzeczywistym przed wysłaniem formularza).
-   - Opracowanie podstron dodawania filmów (`add_movie.php`), aktorów (`add_actor.php`) i przypisywania obsady (`assign_actor.php`).
-2. **QA Asystent:**
-   - Przeprowadzenie testów formularza recenzji (weryfikacja walidacji granicznej: ocena < 1, ocena > 10, puste pola).
-   - Weryfikacja odporności na próby wstrzykiwania kodu `<script>` i znaków specjalnych HTML.
+## 4. Aktualizacja Sesji Backendowej: Optymalizacja Połączenia i Pobierania Danych (2026-11-12)
+- **Współpraca z Administratorem Bazy Danych (DBA):**
+  - Zaktualizowano domyślny host połączenia w `config/database.php` z `127.0.0.1` na `localhost`, umożliwiając sterownikowi PDO automatyczne korzystanie z gniazda uniksowego serwera MariaDB.
+- **Bezpieczne pobieranie parametrów (`filter_var`):**
+  - Zastąpiono funkcję `filter_input()` uniwersalną konstrukcją `filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT)` w plikach `film.php`, `actor.php` oraz `assign_actor.php`. Rozwiązuje to problem niedostępności bufora wejściowego w testach CLI i po wewnętrznych przekierowaniach.
+- **Zabezpieczenie zmiennych serwerowych:**
+  - Dodano bezpieczny odczyt `($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'` w `film.php`, `add_movie.php`, `add_actor.php` i `assign_actor.php`, całkowicie eliminując ostrzeżenia PHP o niezdefiniowanym indeksie tablicy.
+- **Optymalizacja zapytań analitycznych:**
+  - Zapytania pobierające filmy i statystyki oparto na podzapytaniach pre-agregujących (`derived tables`), co definitywnie usunęło iloczyn kartezjański i gwarantuje poprawność matematyczną średniej ocen.
+
+---
+
+## 5. Rekomendowane Kolejne Kroki
+1. Bieżące monitorowanie zapytań w miarę rozrostu bazy danych.
+2. Współpraca z QA Asystentem przy testach regresyjnych.
 

@@ -98,7 +98,22 @@ Błędy: 0
 
 ---
 
-## 5. Orzeczenie Końcowe
+## 5. Aktualizacja Audytu QA: Weryfikacja Nowej Roli DBA i Środowiska MariaDB (2026-11-12)
+- **Weryfikacja bazy danych na żywo (MariaDB 11.8):**
+  - Potwierdzono poprawne nawiązanie połączenia PDO z bazą `cinehub_db` przez gniazdo uniksowe (`localhost`) z uprawnieniami `root:root`.
+  - Zweryfikowano strukturę tabel: `filmy`, `aktorzy`, `obsada`, `recenzje` – wszystkie klucze obce (`ON DELETE CASCADE`), indeksy i ograniczenia `CHECK (ocena BETWEEN 1 AND 10)` działają bezbłędnie.
+- **Weryfikacja kodu i eliminacja ostrzeżeń:**
+  - Przetestowano wszystkie skrypty PHP (`index.php`, `film.php`, `actors.php`, `actor.php`, `add_movie.php`, `add_actor.php`, `assign_actor.php`) – brak jakichkolwiek ostrzeżeń, błędów składniowych czy wyjątków (`php -l` zwraca 0 błędów).
+  - Sprawdzono bezpieczną obsługę parametrów GET/POST przez `filter_var()` oraz sprawdzanie metody żądania `($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'`.
+- **Wyniki pakietu testów integracyjnych (`tests/qa_test.php`):**
+  - Wykonano pełen zestaw 21 testów sprawdzających operacje DDL, DML, agregacje, relacje M:N, walidacje recenzji oraz zabezpieczenia XSS i SQLi:
+  - **Wynik testów:** 21 / 21 PASS (100% sukcesu).
+- **Potwierdzenie stabilności projektu:**
+  - Żadna istniejąca funkcjonalność nie uległa regresji. Projekt jest w 100% stabilny, zintegrowany i spójny.
+
+---
+
+## 6. Orzeczenie Końcowe
 Projekt **CineHub** przeszedł wszystkie procedury testowe bez żadnych zastrzeżeń. Aplikacja w 100% realizuje założenia specyfikacji technicznej oraz standardy kwalifikacji **INF.03**.
 
 Projekt jest w pełni gotowy do przekazania **Agentowi ds. Dokumentacji GitHub** w celu wygenerowania raportu końcowego i zatwierdzenia zmian.

@@ -22,7 +22,7 @@ $czas_trwania = '120';
 $opis = '';
 $plakat = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $tytul = trim((string)($_POST['tytul'] ?? ''));
     $rezyser = trim((string)($_POST['rezyser'] ?? ''));
     $gatunek = trim((string)($_POST['gatunek'] ?? ''));

@@ -17,7 +17,7 @@ $dbError = null;
 $filmy = [];
 $aktorzy = [];
 
-$domyslnyFilmId = filter_input(INPUT_GET, 'film_id', FILTER_VALIDATE_INT) ?: 0;
+$domyslnyFilmId = filter_var($_GET['film_id'] ?? null, FILTER_VALIDATE_INT) ?: 0;
 $wybranyFilmId = $domyslnyFilmId;
 $wybranyAktorId = 0;
 $rola = '';
@@ -31,9 +31,9 @@ try {
     // Pobranie listy aktorów do selecta
     $aktorzy = $pdo->query("SELECT id, imie, nazwisko FROM aktorzy ORDER BY nazwisko ASC, imie ASC")->fetchAll();
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $wybranyFilmId = filter_input(INPUT_POST, 'film_id', FILTER_VALIDATE_INT) ?: 0;
-        $wybranyAktorId = filter_input(INPUT_POST, 'aktor_id', FILTER_VALIDATE_INT) ?: 0;
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+        $wybranyFilmId = filter_var($_POST['film_id'] ?? null, FILTER_VALIDATE_INT) ?: 0;
+        $wybranyAktorId = filter_var($_POST['aktor_id'] ?? null, FILTER_VALIDATE_INT) ?: 0;
         $rola = trim((string)($_POST['rola'] ?? ''));
 
         if ($wybranyFilmId <= 0) {

@@ -26,6 +26,9 @@ Aplikacja została stworzona w celu kompleksowego zarządzania katalogiem dzieł
 
 Projekt stanowi wzorcową realizację wymagań egzaminacyjnych kwalifikacji **INF.03**, łącząc wysokie standardy inżynierii oprogramowania (architektura modularna, brak zewnętrznych frameworków, pełne bezpieczeństwo) z estetycznym i ergonomicznym interfejsem użytkownika.
 
+Dokumentacja projektu jest dostępna również w formacie czystego tekstu w pliku [`README.txt`](README.txt).  
+Szczegółowy plan projektu oraz założenia techniczne sporządzone przez Plannera znajdują się w raporcie sesyjnym [`Docs/Sessions/Planning.md`](Docs/Sessions/Planning.md) oraz w specyfikacji [`Docs/Specs.md`](Docs/Specs.md).
+
 ---
 
 ## ✨ Główne Funkcjonalności
@@ -117,40 +120,44 @@ Aplikacja prowadzi użytkownika przez intuicyjny, spójny cykl interakcji:
 Projekt został zrealizowany w innowacyjnej metodyce orkiestracji wieloagentowej nadzorowanej przez **Głównego Agenta** według ścisłych procedur opisanych w [`Docs/workflow.md`](Docs/workflow.md). Każda rola odpowiadała za precyzyjnie wyznaczony obszar inżynierii i raportowała wyniki w dedykowanym pliku w [`Docs/Sessions/`](Docs/Sessions/):
 
 ```text
- ┌────────────────────────────────────────────────────────┐
- │           GŁÓWNY AGENT (ORCHESTRATOR)                 │
- └───────────────────────────┬────────────────────────────┘
-                             │
-       ┌─────────────────────┼─────────────────────┐
-       ▼                     ▼                     ▼
- 1. PLANNER          2. BACKEND DEVELOPER   3. FRONTEND DEVELOPER
- (Wymagania,         (DDL, PDO, zapytania   (CSS Dark Mode, RWD,
-  architektura,       bez iloczynu,          gwiazdki ocen, JS)
-  Specs.md & Mermaid) film.php POST)               │
-       │                     │                     │
-       └─────────────────────┼─────────────────────┘
-                             │
-       ┌─────────────────────┴─────────────────────┐
-       ▼                                           ▼
- 4. CONTENT AGENT                             5. QA ASYSTENT
- (Zasilenie bazy danymi                       (Audyt 21 testów,
-  polskiego kina seed.sql)                     optymalizacja SQL,
-       │                                       weryfikacja Specs.md)
-       │                                           │
-       └─────────────────────┬─────────────────────┘
-                             ▼
-              6. AGENT DS. DOKUMENTACJI GITHUB
-              (Agregacja raportów, README.md, git commit)
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │                      GŁÓWNY AGENT (ORCHESTRATOR)                       │
+ └───────────────────────────────────┬────────────────────────────────────┘
+                                     │
+       ┌─────────────────────────────┼─────────────────────────────┐
+       ▼                             ▼                             ▼
+ 1. PLANNER                 2. BACKEND DEVELOPER          3. FRONTEND DEVELOPER
+ (Wymagania, architektura,  (DDL, PDO, zapytania         (CSS Dark Mode, RWD,
+  Specs.md & Mermaid,        bez iloczynu, film.php POST)  gwiazdki ocen, JS)
+  plan projektu)                     │                             │
+       │                             │                             │
+       └─────────────────────────────┼─────────────────────────────┘
+                                     │
+       ┌─────────────────────────────┼─────────────────────────────┐
+       ▼                             ▼                             ▼
+ 4. ADMINISTRATOR BAZY       5. CONTENT AGENT              6. QA ASYSTENT
+    DANYCH (DBA)             (Zasilenie bazy danymi        (Audyt 21 testów,
+ (Integracja bazy, sockety,   polskiego kina seed.sql)      optymalizacja SQL,
+  DDL, klucze, kaskady)              │                      stabilność systemu)
+       │                             │                             │
+       └─────────────────────────────┴─────────────────────────────┘
+                                     │
+                                     ▼
+                      7. AGENT DS. DOKUMENTACJI GITHUB
+             (Dokumentacja README.md, README.txt, Final-Report.md)
 ```
 
 ### Role i Odpowiedzialności w Projekcie:
-1. **Główny Agent (Orchestrator):** Koordynacja prac zespołu, pilnowanie wytycznych kwalifikacji INF.03, przełączanie ról i weryfikacja zasady bezwzględnego raportowania.
-2. **Planner:** Analiza wymagań, przygotowanie specyfikacji technicznej [`Docs/Specs.md`](Docs/Specs.md) oraz diagramów architektury i ERD w notacji Mermaid. Raport: [`Docs/Sessions/Planning.md`](Docs/Sessions/Planning.md).
+1. **Główny Agent (Orchestrator):** Koordynacja prac zespołu, pilnowanie wytycznych kwalifikacji INF.03, przełączanie ról i egzekwowanie zasady bezwzględnego raportowania.
+2. **Planner:** Analiza wymagań, przygotowanie oficjalnej specyfikacji technicznej [`Docs/Specs.md`](Docs/Specs.md), diagramów architektury i ERD w notacji Mermaid oraz harmonogramu prac. **Szczegółowy plan projektu i założenia architektoniczne opisano w raporcie Plannera:** [`Docs/Sessions/Planning.md`](Docs/Sessions/Planning.md).
 3. **Backend Developer & Data Analyst:** Zaprojektowanie struktury tabel InnoDB, bezpieczna konfiguracja PDO, zapytania z pre-agregacją eliminujące iloczyn kartezjański, obsługa formularza recenzji we wzorcu PRG. Raport: [`Docs/Sessions/Backend.md`](Docs/Sessions/Backend.md).
 4. **Frontend Developer:** Stworzenie stylów CSS w motywie kinowym Dark Mode (`frontend/css/style.css`), semantyka HTML5, skrypt interakcji i walidacji `frontend/js/main.js`. Raport: [`Docs/Sessions/Frontend.md`](Docs/Sessions/Frontend.md).
-5. **Content Agent:** Zebranie i wprowadzenie autentycznych danych z historii polskiego kina: 8 filmów, 19 aktorów, 21 ról w obsadzie, 17 recenzji (`database/seed.sql`). Raport: [`Docs/Sessions/Content.md`](Docs/Sessions/Content.md).
-6. **QA Asystent:** Rygorystyczny audyt całego kodu, wykrycie i zlecenie poprawek (utworzenie brakujących podstron aktorów i formularzy, optymalizacja zapytań SQL, dostępność formularzy), stworzenie i wdrożenie automatycznego pakietu 21 testów integracyjnych (`tests/qa_test.php`). Raport: [`Docs/Sessions/QA.md`](Docs/Sessions/QA.md).
-7. **Agent ds. Dokumentacji GitHub:** Zebranie raportów cząstkowych, opracowanie dokumentu podsumowującego [`Docs/Final-Report.md`](Docs/Final-Report.md), stworzenie niniejszego przewodnika `README.md` oraz sformatowanie merytorycznej komendy git commit.
+5. **Administrator Bazy Danych (DBA):** Odpowiada za techniczną i logiczną integrację bazy danych z projektem: weryfikację połączenia (PDO, DSN, obsługa gniazda unix socket i fallbacku TCP, uprawnienia), poprawność i integralność struktury tabel (klucze główne, klucze obce, indeksy wydajnościowe, reguły ON DELETE CASCADE, ograniczenia CHECK) oraz spójność DDL.  
+   > ⚠️ **Kluczowa zasada:** DBA *nie wchodzi w rolę Content Agenta* – nie weryfikuje ani nie ocenia pojedynczych rekordów danych, lecz wyłącznie techniczną i logiczną integrację bazy z kodem.  
+   Raport: [`Docs/Sessions/Database-integrity.md`](Docs/Sessions/Database-integrity.md).
+6. **Content Agent:** Zebranie i wprowadzenie autentycznych danych z historii polskiego kina: 8 filmów, 19 aktorów, 21 ról w obsadzie, 17 recenzji (`database/seed.sql`). Raport: [`Docs/Sessions/Content.md`](Docs/Sessions/Content.md).
+7. **QA Asystent:** Rygorystyczny audyt całego kodu, wykrycie i zlecenie poprawek (podstrony aktorów, eliminacja ostrzeżeń CLI, dostępność formularzy), stworzenie i wdrożenie automatycznego pakietu 21 testów integracyjnych (`tests/qa_test.php`). Raport: [`Docs/Sessions/QA.md`](Docs/Sessions/QA.md).
+8. **Agent ds. Dokumentacji GitHub:** Zebranie raportów cząstkowych, opracowanie dokumentu podsumowującego [`Docs/Final-Report.md`](Docs/Final-Report.md), stworzenie niniejszego przewodnika `README.md`, wygenerowanie oficjalnego pliku tekstowego [`README.txt`](README.txt) oraz sformatowanie merytorycznej komendy `git commit`. Raport: [`Docs/Sessions/Github-Doc.md`](Docs/Sessions/Github-Doc.md).
 
 ---
 
@@ -159,17 +166,20 @@ Projekt został zrealizowany w innowacyjnej metodyce orkiestracji wieloagentowej
 ```text
 cinehub/
 ├── Docs/
-│   ├── workflow.md              # Instrukcja orkiestracji zespołowej i podagentów
+│   ├── workflow.md              # Instrukcja orkiestracji zespołowej i 7 podagentów
 │   ├── Specs.md                 # Specyfikacja techniczna i funkcjonalna z diagramami Mermaid
 │   ├── Final-Report.md          # Pełny raport końcowy z realizacji projektu
-│   └── Sessions/                # Dziennik sesji poszczególnych ról
-│       ├── Planning.md          # Raport Plannera
+│   └── Sessions/                # Dziennik sesji poszczególnych ról (ściśle przypisane pliki)
+│       ├── Planning.md          # Raport Plannera (PLAN PROJEKTU)
 │       ├── Backend.md           # Raport Backend Developera & Data Analysta
 │       ├── Frontend.md          # Raport Frontend Developera
+│       ├── Database-integrity.md# Raport Administratora Bazy Danych (DBA)
 │       ├── Content.md           # Raport Content Agenta
-│       └── QA.md                # Raport QA Asystenta
+│       ├── QA.md                # Raport QA Asystenta
+│       ├── Github-Doc.md        # Raport Agenta ds. Dokumentacji GitHub
+│       └── Verification-Audit.md# Raport całościowego audytu stanu projektu
 ├── config/
-│   └── database.php             # Konfiguracja połączenia PDO (MySQL + opcja SQLite)
+│   └── database.php             # Konfiguracja połączenia PDO (localhost / socket / TCP)
 ├── database/
 │   ├── schema.sql               # Struktura tabel, kluczy obcych i indeksów (DDL)
 │   └── seed.sql                 # Zasilenie bazy 8 polskimi filmami, obsadą i recenzjami (DML)
@@ -191,7 +201,8 @@ cinehub/
 ├── add_movie.php                # Formularz dodawania nowego filmu
 ├── add_actor.php                # Formularz dodawania nowego aktora
 ├── assign_actor.php             # Formularz przypisania roli w obsadzie
-└── README.md                    # Niniejsza oficjalna dokumentacja projektu
+├── README.md                    # Niniejsza oficjalna dokumentacja projektu w Markdown
+└── README.txt                   # Oficjalna dokumentacja projektu w formacie tekstowym
 ```
 
 ---

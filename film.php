@@ -10,7 +10,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/functions.php';
 
-$filmId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+$filmId = filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT) ?: null;
 $dbError = null;
 $film = null;
 $obsada = [];
@@ -34,7 +34,7 @@ try {
     // -------------------------------------------------------------------------
     // 1. OBSŁUGA FORMULARZA RECENZJI (METODA POST)
     // -------------------------------------------------------------------------
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $formAutor = trim((string)($_POST['autor'] ?? ''));
         $formOcenaRaw = $_POST['ocena'] ?? null;
         $formTresc = trim((string)($_POST['tresc'] ?? ''));

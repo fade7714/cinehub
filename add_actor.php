@@ -20,7 +20,7 @@ $data_urodzenia = '';
 $zdjecie = '';
 $biografia = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $imie = trim((string)($_POST['imie'] ?? ''));
     $nazwisko = trim((string)($_POST['nazwisko'] ?? ''));
     $data_urodzenia = trim((string)($_POST['data_urodzenia'] ?? ''));

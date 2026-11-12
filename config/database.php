@@ -10,7 +10,7 @@ declare(strict_types=1);
 
 // Parametry konfiguracyjne bazy danych
 define('DB_DRIVER', getenv('DB_DRIVER') ?: 'mysql');
-define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
+define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
 define('DB_PORT', getenv('DB_PORT') ?: '3306');
 define('DB_NAME', getenv('DB_NAME') ?: 'cinehub_db');
 define('DB_USER', getenv('DB_USER') ?: 'root');

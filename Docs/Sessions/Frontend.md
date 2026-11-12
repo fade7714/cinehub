@@ -66,10 +66,18 @@
 
 ---
 
-## 4. Rekomendowane Kolejne Kroki
-1. **QA Asystent:**
-   - Weryfikacja spójności wyglądu i responsywności na różnych rozdzielczościach ekranu (RWD).
-   - Testy działania formularza recenzji w przeglądarce i walidacji JS/PHP.
-2. **Agent ds. Dokumentacji GitHub:**
-   - Utworzenie podsumowania projektu `Docs/Final-Report.md` oraz przygotowanie propozycji komend commitów Git.
+## 4. Aktualizacja Sesji Frontendowej: Weryfikacja Spójności Wizualnej i Dostępności (2026-11-12)
+- **Audyt stylów i komponentów:**
+  - Potwierdzono poprawne działanie motywu Dark Mode w `frontend/css/style.css` na wszystkich podstronach katalogu filmów, profilu aktora oraz formularzy administracyjnych.
+  - Sprawdzono dostępność komponentu wyboru ocen – radio inputy posiadają bezpieczne ukrycie wizualne (`position: absolute; opacity: 0;`), co zapobiega błędom walidacji przeglądarkowej `not focusable`.
+- **Integracja ze skryptem JS:**
+  - Plik `frontend/js/main.js` poprawnie obsługuje dynamiczny podgląd opisu oceny (np. *„10/10 – Arcydzieło”*), licznik znaków recenzji w czasie rzeczywistym oraz walidację pól przed wysłaniem żądania POST.
+- **Kompatybilność mobilna (RWD):**
+  - Siatka kart filmowych i obsady płynnie skaluje się od układów jednokolumnowych (ekrany smartfonów) do wielokolumnowych (desktop).
+
+---
+
+## 5. Rekomendowane Kolejne Kroki
+1. Utrzymanie spójności stylów przy ewentualnym dodawaniu nowych podstron.
+2. Współpraca z QA Asystentem przy weryfikacji dostępności (a11y).
 
